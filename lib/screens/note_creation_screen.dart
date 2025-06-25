@@ -29,6 +29,7 @@ class _NoteCreationScreenState extends State<NoteCreationScreen> with TickerProv
   bool _isEditMode = true;
   bool _isEditingBodyWeight = false;
   Set<int> _editingExerciseIndices = {};
+  bool _isInitialLoad = true;
 
   @override
   void initState() {
@@ -50,7 +51,11 @@ class _NoteCreationScreenState extends State<NoteCreationScreen> with TickerProv
   }
 
   Future<void> _loadSelectedDateNote() async {
-    final existingNote = widget.existingNote ?? await _storageService.getNoteForDate(_selectedDate);
+    final existingNote = _isInitialLoad && widget.existingNote != null 
+        ? widget.existingNote 
+        : await _storageService.getNoteForDate(_selectedDate);
+    
+    _isInitialLoad = false;
     
     if (existingNote != null) {
       // Load existing note data
