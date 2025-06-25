@@ -51,18 +51,17 @@ class _NoteCreationScreenState extends State<NoteCreationScreen> with TickerProv
     
     if (existingNote != null) {
       // Load existing note data
-      _bodyWeightController.text = existingNote.bodyWeight.toString();
+      _bodyWeightController.text = existingNote.bodyWeight == 0 ? '' : existingNote.bodyWeight.toString();
       _exercises = List.from(existingNote.exercises);
     } else {
-      // Initialize with 3 empty exercises
+      // Initialize with 1 empty exercise and clear body weight
+      _bodyWeightController.clear();
       _exercises.clear();
-      for (int i = 0; i < 3; i++) {
-        _exercises.add(Exercise(
-          name: '',
-          sets: [TrainingSet(weight: 0, reps: 0)], // Start with 1 set
-          memo: '',
-        ));
-      }
+      _exercises.add(Exercise(
+        name: '',
+        sets: [TrainingSet(weight: 0, reps: 0)], // Start with 1 set
+        memo: '',
+      ));
     }
     setState(() {});
   }
@@ -166,7 +165,6 @@ class _NoteCreationScreenState extends State<NoteCreationScreen> with TickerProv
       ),
     );
   }
-
 
   @override
   Widget build(BuildContext context) {
@@ -309,13 +307,17 @@ class _NoteCreationScreenState extends State<NoteCreationScreen> with TickerProv
                                 fontFamily: 'serif',
                                 color: Color(0xFF5D4037),
                               ),
-                              keyboardType: TextInputType.number,
+                              keyboardType: const TextInputType.numberWithOptions(decimal: true),
                               validator: (value) {
                                 if (value == null || value.isEmpty) {
                                   return '体重を入力してください';
                                 }
-                                if (double.tryParse(value) == null) {
+                                final weight = double.tryParse(value);
+                                if (weight == null) {
                                   return '正しい数値を入力してください';
+                                }
+                                if (weight <= 0) {
+                                  return '正しい体重を入力してください';
                                 }
                                 return null;
                               },
@@ -634,7 +636,7 @@ class SetRow extends StatelessWidget {
           ),
           Expanded(
             child: TextFormField(
-              initialValue: set.weight.toString(),
+              initialValue: set.weight == 0 ? '' : set.weight.toString(),
               decoration: InputDecoration(
                 labelText: 'kg',
                 labelStyle: const TextStyle(
@@ -662,7 +664,7 @@ class SetRow extends StatelessWidget {
                 fontFamily: 'serif',
                 color: Color(0xFF5D4037),
               ),
-              keyboardType: TextInputType.number,
+              keyboardType: const TextInputType.numberWithOptions(decimal: true),
               onChanged: (value) {
                 final weight = double.tryParse(value) ?? 0;
                 onChanged(TrainingSet(weight: weight, reps: set.reps));
@@ -672,7 +674,7 @@ class SetRow extends StatelessWidget {
           const SizedBox(width: 8),
           Expanded(
             child: TextFormField(
-              initialValue: set.reps.toString(),
+              initialValue: set.reps == 0 ? '' : set.reps.toString(),
               decoration: InputDecoration(
                 labelText: '回',
                 labelStyle: const TextStyle(
