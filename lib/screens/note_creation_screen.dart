@@ -81,36 +81,73 @@ class _NoteCreationScreenState extends State<NoteCreationScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('ノート作成'),
-        backgroundColor: Theme.of(context).colorScheme.primary,
+        title: const Text('📝 トレーニングノート'),
+        backgroundColor: const Color(0xFF8B4513),
         foregroundColor: Colors.white,
+        elevation: 2,
       ),
-      body: Form(
-        key: _formKey,
-        child: Column(
-          children: [
-            Expanded(
-              child: SingleChildScrollView(
-                padding: const EdgeInsets.all(16.0),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    Card(
-                      child: Padding(
-                        padding: const EdgeInsets.all(16.0),
+      backgroundColor: const Color(0xFFFAF6F0),
+      body: Container(
+        decoration: const BoxDecoration(
+          color: Color(0xFFFAF6F0),
+        ),
+        child: Form(
+          key: _formKey,
+          child: Column(
+            children: [
+              Expanded(
+                child: SingleChildScrollView(
+                  padding: const EdgeInsets.fromLTRB(32.0, 16.0, 24.0, 16.0),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      // Red margin line (like notebook paper)
+                      Container(
+                        height: 2,
+                        margin: const EdgeInsets.only(bottom: 20),
+                        decoration: const BoxDecoration(
+                          color: Color(0xFFFF6B6B),
+                          borderRadius: BorderRadius.all(Radius.circular(1)),
+                        ),
+                      ),
+                      Container(
+                        margin: const EdgeInsets.only(bottom: 16),
+                        padding: const EdgeInsets.all(20.0),
+                        decoration: BoxDecoration(
+                          color: Colors.white.withOpacity(0.8),
+                          borderRadius: BorderRadius.circular(12),
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.black.withOpacity(0.1),
+                              blurRadius: 8,
+                              offset: const Offset(0, 2),
+                            ),
+                          ],
+                          border: Border.all(
+                            color: const Color(0xFFE8E1D9),
+                            width: 1,
+                          ),
+                        ),
                         child: Column(
                           children: [
                             Row(
                               children: [
-                                const Icon(Icons.calendar_today),
+                                const Icon(Icons.calendar_today, color: Color(0xFF8B4513)),
                                 const SizedBox(width: 8),
                                 Text(
                                   '日付: ${DateFormat('yyyy/MM/dd').format(_selectedDate)}',
-                                  style: const TextStyle(fontSize: 16),
+                                  style: const TextStyle(
+                                    fontSize: 16,
+                                    fontFamily: 'serif',
+                                    color: Color(0xFF5D4037),
+                                  ),
                                 ),
                                 const Spacer(),
                                 TextButton(
                                   onPressed: _selectDate,
+                                  style: TextButton.styleFrom(
+                                    foregroundColor: const Color(0xFF8B4513),
+                                  ),
                                   child: const Text('変更'),
                                 ),
                               ],
@@ -118,9 +155,31 @@ class _NoteCreationScreenState extends State<NoteCreationScreen> {
                             const SizedBox(height: 16),
                             TextFormField(
                               controller: _bodyWeightController,
-                              decoration: const InputDecoration(
+                              decoration: InputDecoration(
                                 labelText: '体重 (kg)',
-                                border: OutlineInputBorder(),
+                                labelStyle: const TextStyle(
+                                  color: Color(0xFF8B4513),
+                                  fontFamily: 'serif',
+                                ),
+                                border: OutlineInputBorder(
+                                  borderRadius: BorderRadius.circular(8),
+                                  borderSide: const BorderSide(
+                                    color: Color(0xFFD7CCC8),
+                                  ),
+                                ),
+                                focusedBorder: OutlineInputBorder(
+                                  borderRadius: BorderRadius.circular(8),
+                                  borderSide: const BorderSide(
+                                    color: Color(0xFF8B4513),
+                                    width: 2,
+                                  ),
+                                ),
+                                fillColor: Colors.white,
+                                filled: true,
+                              ),
+                              style: const TextStyle(
+                                fontFamily: 'serif',
+                                color: Color(0xFF5D4037),
                               ),
                               keyboardType: TextInputType.number,
                               validator: (value) {
@@ -136,49 +195,80 @@ class _NoteCreationScreenState extends State<NoteCreationScreen> {
                           ],
                         ),
                       ),
-                    ),
-                    const SizedBox(height: 16),
-                    Row(
-                      children: [
-                        const Text(
-                          '種目',
-                          style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                      const SizedBox(height: 16),
+                      Container(
+                        margin: const EdgeInsets.only(left: 8),
+                        child: Row(
+                          children: [
+                            const Text(
+                              '🏋️ 種目',
+                              style: TextStyle(
+                                fontSize: 20,
+                                fontWeight: FontWeight.bold,
+                                fontFamily: 'serif',
+                                color: Color(0xFF5D4037),
+                              ),
+                            ),
+                            const Spacer(),
+                            IconButton(
+                              onPressed: _addExercise,
+                              icon: const Icon(Icons.add_circle),
+                              color: const Color(0xFF8B4513),
+                              iconSize: 28,
+                            ),
+                          ],
                         ),
-                        const Spacer(),
-                        IconButton(
-                          onPressed: _addExercise,
-                          icon: const Icon(Icons.add_circle),
-                          color: Theme.of(context).primaryColor,
-                        ),
-                      ],
+                      ),
+                      ..._exercises.asMap().entries.map((entry) {
+                        final index = entry.key;
+                        return ExerciseCard(
+                          exercise: entry.value,
+                          onChanged: (exercise) {
+                            setState(() {
+                              _exercises[index] = exercise;
+                            });
+                          },
+                          onRemove: () => _removeExercise(index),
+                        );
+                      }).toList(),
+                    ],
+                  ),
+                ),
+              ),
+              Container(
+                padding: const EdgeInsets.all(16.0),
+                decoration: BoxDecoration(
+                  color: Colors.white.withOpacity(0.9),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withOpacity(0.1),
+                      blurRadius: 4,
+                      offset: const Offset(0, -2),
                     ),
-                    ..._exercises.asMap().entries.map((entry) {
-                      final index = entry.key;
-                      return ExerciseCard(
-                        exercise: entry.value,
-                        onChanged: (exercise) {
-                          setState(() {
-                            _exercises[index] = exercise;
-                          });
-                        },
-                        onRemove: () => _removeExercise(index),
-                      );
-                    }).toList(),
                   ],
                 ),
-              ),
-            ),
-            Padding(
-              padding: const EdgeInsets.all(16.0),
-              child: ElevatedButton(
-                onPressed: _saveNote,
-                style: ElevatedButton.styleFrom(
-                  padding: const EdgeInsets.symmetric(vertical: 16),
+                child: ElevatedButton(
+                  onPressed: _saveNote,
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color(0xFF8B4513),
+                    foregroundColor: Colors.white,
+                    padding: const EdgeInsets.symmetric(vertical: 16),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    elevation: 4,
+                  ),
+                  child: const Text(
+                    '📖 ノートを保存',
+                    style: TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
                 ),
-                child: const Text('ノートを保存'),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );
@@ -254,81 +344,167 @@ class _ExerciseCardState extends State<ExerciseCard> {
 
   @override
   Widget build(BuildContext context) {
-    return Card(
+    return Container(
       margin: const EdgeInsets.only(bottom: 16),
-      child: Padding(
-        padding: const EdgeInsets.all(16.0),
-        child: Column(
-          children: [
-            Row(
-              children: [
-                Expanded(
-                  child: TextFormField(
-                    controller: _nameController,
-                    decoration: const InputDecoration(
-                      labelText: '種目名',
-                      border: OutlineInputBorder(),
-                    ),
-                    onChanged: (_) => _updateExercise(),
-                  ),
-                ),
-                IconButton(
-                  onPressed: widget.onRemove,
-                  icon: const Icon(Icons.delete),
-                  color: Colors.red,
-                ),
-              ],
-            ),
-            const SizedBox(height: 16),
-            TextFormField(
-              controller: _intervalController,
-              decoration: const InputDecoration(
-                labelText: 'インターバル (秒)',
-                border: OutlineInputBorder(),
-              ),
-              keyboardType: TextInputType.number,
-              onChanged: (_) => _updateExercise(),
-            ),
-            const SizedBox(height: 16),
-            Row(
-              children: [
-                const Text('セット', style: TextStyle(fontWeight: FontWeight.bold)),
-                const Spacer(),
-                if (_sets.length < 5)
-                  IconButton(
-                    onPressed: _addSet,
-                    icon: const Icon(Icons.add),
-                    color: Theme.of(context).primaryColor,
-                  ),
-              ],
-            ),
-            ..._sets.asMap().entries.map((entry) {
-              final index = entry.key;
-              final set = entry.value;
-              return SetRow(
-                setNumber: index + 1,
-                set: set,
-                onChanged: (newSet) {
-                  setState(() {
-                    _sets[index] = newSet;
-                    _updateExercise();
-                  });
-                },
-                onRemove: _sets.length > 1 ? () => _removeSet(index) : null,
-              );
-            }).toList(),
-            const SizedBox(height: 16),
-            TextFormField(
-              controller: _memoController,
-              decoration: const InputDecoration(
-                labelText: 'メモ',
-                border: OutlineInputBorder(),
-              ),
-              maxLines: 2,
-              onChanged: (_) => _updateExercise(),
-            ),
-          ],
+      padding: const EdgeInsets.all(20.0),
+      decoration: BoxDecoration(
+        color: Colors.white.withOpacity(0.9),
+        borderRadius: BorderRadius.circular(12),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.1),
+            blurRadius: 8,
+            offset: const Offset(0, 2),
+          ),
+        ],
+        border: Border.all(
+          color: const Color(0xFFE8E1D9),
+          width: 1,
         ),
+      ),
+      child: Column(
+        children: [
+          Row(
+            children: [
+              Expanded(
+                child: TextFormField(
+                  controller: _nameController,
+                  decoration: InputDecoration(
+                    labelText: '種目名',
+                    labelStyle: const TextStyle(
+                      color: Color(0xFF8B4513),
+                      fontFamily: 'serif',
+                    ),
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(8),
+                      borderSide: const BorderSide(
+                        color: Color(0xFFD7CCC8),
+                      ),
+                    ),
+                    focusedBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(8),
+                      borderSide: const BorderSide(
+                        color: Color(0xFF8B4513),
+                        width: 2,
+                      ),
+                    ),
+                    fillColor: Colors.white,
+                    filled: true,
+                  ),
+                  style: const TextStyle(
+                    fontFamily: 'serif',
+                    color: Color(0xFF5D4037),
+                  ),
+                  onChanged: (_) => _updateExercise(),
+                ),
+              ),
+              IconButton(
+                onPressed: widget.onRemove,
+                icon: const Icon(Icons.delete),
+                color: Colors.red,
+              ),
+            ],
+          ),
+          const SizedBox(height: 16),
+          TextFormField(
+            controller: _intervalController,
+            decoration: InputDecoration(
+              labelText: 'インターバル (秒)',
+              labelStyle: const TextStyle(
+                color: Color(0xFF8B4513),
+                fontFamily: 'serif',
+              ),
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(8),
+                borderSide: const BorderSide(
+                  color: Color(0xFFD7CCC8),
+                ),
+              ),
+              focusedBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(8),
+                borderSide: const BorderSide(
+                  color: Color(0xFF8B4513),
+                  width: 2,
+                ),
+              ),
+              fillColor: Colors.white,
+              filled: true,
+            ),
+            style: const TextStyle(
+              fontFamily: 'serif',
+              color: Color(0xFF5D4037),
+            ),
+            keyboardType: TextInputType.number,
+            onChanged: (_) => _updateExercise(),
+          ),
+          const SizedBox(height: 16),
+          Row(
+            children: [
+              const Text(
+                'セット',
+                style: TextStyle(
+                  fontWeight: FontWeight.bold,
+                  fontFamily: 'serif',
+                  color: Color(0xFF5D4037),
+                ),
+              ),
+              const Spacer(),
+              if (_sets.length < 5)
+                IconButton(
+                  onPressed: _addSet,
+                  icon: const Icon(Icons.add),
+                  color: const Color(0xFF8B4513),
+                ),
+            ],
+          ),
+          ..._sets.asMap().entries.map((entry) {
+            final index = entry.key;
+            final set = entry.value;
+            return SetRow(
+              setNumber: index + 1,
+              set: set,
+              onChanged: (newSet) {
+                setState(() {
+                  _sets[index] = newSet;
+                  _updateExercise();
+                });
+              },
+              onRemove: _sets.length > 1 ? () => _removeSet(index) : null,
+            );
+          }).toList(),
+          const SizedBox(height: 16),
+          TextFormField(
+            controller: _memoController,
+            decoration: InputDecoration(
+              labelText: 'メモ',
+              labelStyle: const TextStyle(
+                color: Color(0xFF8B4513),
+                fontFamily: 'serif',
+              ),
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(8),
+                borderSide: const BorderSide(
+                  color: Color(0xFFD7CCC8),
+                ),
+              ),
+              focusedBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(8),
+                borderSide: const BorderSide(
+                  color: Color(0xFF8B4513),
+                  width: 2,
+                ),
+              ),
+              fillColor: Colors.white,
+              filled: true,
+            ),
+            style: const TextStyle(
+              fontFamily: 'serif',
+              color: Color(0xFF5D4037),
+            ),
+            maxLines: 2,
+            onChanged: (_) => _updateExercise(),
+          ),
+        ],
       ),
     );
   }
@@ -356,15 +532,44 @@ class SetRow extends StatelessWidget {
         children: [
           SizedBox(
             width: 40,
-            child: Text('$setNumber', style: const TextStyle(fontWeight: FontWeight.bold)),
+            child: Text(
+              '$setNumber',
+              style: const TextStyle(
+                fontWeight: FontWeight.bold,
+                fontFamily: 'serif',
+                color: Color(0xFF5D4037),
+              ),
+            ),
           ),
           Expanded(
             child: TextFormField(
               initialValue: set.weight.toString(),
-              decoration: const InputDecoration(
+              decoration: InputDecoration(
                 labelText: 'kg',
-                border: OutlineInputBorder(),
-                contentPadding: EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+                labelStyle: const TextStyle(
+                  color: Color(0xFF8B4513),
+                  fontFamily: 'serif',
+                ),
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(6),
+                  borderSide: const BorderSide(
+                    color: Color(0xFFD7CCC8),
+                  ),
+                ),
+                focusedBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(6),
+                  borderSide: const BorderSide(
+                    color: Color(0xFF8B4513),
+                    width: 2,
+                  ),
+                ),
+                contentPadding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+                fillColor: Colors.white,
+                filled: true,
+              ),
+              style: const TextStyle(
+                fontFamily: 'serif',
+                color: Color(0xFF5D4037),
               ),
               keyboardType: TextInputType.number,
               onChanged: (value) {
@@ -377,10 +582,32 @@ class SetRow extends StatelessWidget {
           Expanded(
             child: TextFormField(
               initialValue: set.reps.toString(),
-              decoration: const InputDecoration(
+              decoration: InputDecoration(
                 labelText: '回',
-                border: OutlineInputBorder(),
-                contentPadding: EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+                labelStyle: const TextStyle(
+                  color: Color(0xFF8B4513),
+                  fontFamily: 'serif',
+                ),
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(6),
+                  borderSide: const BorderSide(
+                    color: Color(0xFFD7CCC8),
+                  ),
+                ),
+                focusedBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(6),
+                  borderSide: const BorderSide(
+                    color: Color(0xFF8B4513),
+                    width: 2,
+                  ),
+                ),
+                contentPadding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+                fillColor: Colors.white,
+                filled: true,
+              ),
+              style: const TextStyle(
+                fontFamily: 'serif',
+                color: Color(0xFF5D4037),
               ),
               keyboardType: TextInputType.number,
               onChanged: (value) {
