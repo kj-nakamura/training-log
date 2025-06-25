@@ -4,40 +4,97 @@ import '../models/training_note.dart';
 import '../models/exercise.dart';
 import '../models/training_set.dart';
 import '../services/storage_service.dart';
-import 'note_detail_screen.dart';
+import '../widgets/progress_chart.dart';
+import 'calendar_screen.dart';
 
 class NoteCreationScreen extends StatefulWidget {
-  const NoteCreationScreen({Key? key}) : super(key: key);
+  final TrainingNote? existingNote;
+  final DateTime? selectedDate;
+  
+  const NoteCreationScreen({Key? key, this.existingNote, this.selectedDate}) : super(key: key);
 
   @override
   State<NoteCreationScreen> createState() => _NoteCreationScreenState();
 }
 
-class _NoteCreationScreenState extends State<NoteCreationScreen> {
+class _NoteCreationScreenState extends State<NoteCreationScreen> with TickerProviderStateMixin {
   final _formKey = GlobalKey<FormState>();
   final _bodyWeightController = TextEditingController();
   final StorageService _storageService = StorageService();
   
-  final DateTime _selectedDate = DateTime.now();
+  late DateTime _selectedDate;
   List<Exercise> _exercises = [];
+  late AnimationController _animationController;
+  late Animation<double> _slideAnimation;
 
   @override
   void initState() {
     super.initState();
-    // Initialize with 3 empty exercises
-    for (int i = 0; i < 3; i++) {
-      _exercises.add(Exercise(
-        name: '',
-        interval: 0,
-        sets: [TrainingSet(weight: 0, reps: 0)], // Start with 1 set
-        memo: '',
-      ));
+    _selectedDate = widget.selectedDate ?? DateTime.now();
+    _animationController = AnimationController(
+      duration: const Duration(milliseconds: 300),
+      vsync: this,
+    );
+    _slideAnimation = Tween<double>(
+      begin: 0.0,
+      end: 1.0,
+    ).animate(CurvedAnimation(
+      parent: _animationController,
+      curve: Curves.easeInOut,
+    ));
+    _animationController.forward();
+    _loadSelectedDateNote();
+  }
+
+  Future<void> _loadSelectedDateNote() async {
+    final existingNote = widget.existingNote ?? await _storageService.getNoteForDate(_selectedDate);
+    
+    if (existingNote != null) {
+      // Load existing note data
+      _bodyWeightController.text = existingNote.bodyWeight.toString();
+      _exercises = List.from(existingNote.exercises);
+    } else {
+      // Initialize with 3 empty exercises
+      _exercises.clear();
+      for (int i = 0; i < 3; i++) {
+        _exercises.add(Exercise(
+          name: '',
+          sets: [TrainingSet(weight: 0, reps: 0)], // Start with 1 set
+          memo: '',
+        ));
+      }
+    }
+    setState(() {});
+  }
+
+  Future<void> _switchToDate(DateTime newDate, bool isSwipeRight) async {
+    // Start slide out animation
+    await _animationController.reverse();
+    
+    setState(() {
+      _selectedDate = newDate;
+    });
+    await _loadSelectedDateNote();
+    
+    // Start slide in animation
+    _animationController.forward();
+    
+    // Show brief feedback
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('${DateFormat('yyyy/MM/dd').format(_selectedDate)}のノートに切り替えました'),
+          duration: const Duration(milliseconds: 1500),
+          backgroundColor: const Color(0xFF8B4513),
+        ),
+      );
     }
   }
 
   @override
   void dispose() {
     _bodyWeightController.dispose();
+    _animationController.dispose();
     super.dispose();
   }
 
@@ -45,8 +102,7 @@ class _NoteCreationScreenState extends State<NoteCreationScreen> {
     setState(() {
       _exercises.add(Exercise(
         name: '',
-        interval: 0,
-        sets: List.generate(5, (_) => TrainingSet(weight: 0, reps: 0)), // Initialize with 5 empty sets
+        sets: [TrainingSet(weight: 0, reps: 0)], // Initialize with 1 empty set
         memo: '',
       ));
     });
@@ -60,9 +116,22 @@ class _NoteCreationScreenState extends State<NoteCreationScreen> {
 
   Future<void> _saveNote() async {
     if (_formKey.currentState!.validate()) {
+      final existingNote = await _storageService.getNoteForDate(_selectedDate);
+      
+      // 選択した日付に現在の時刻を適用
+      final now = DateTime.now();
+      final dateWithCurrentTime = DateTime(
+        _selectedDate.year,
+        _selectedDate.month,
+        _selectedDate.day,
+        now.hour,
+        now.minute,
+        now.second,
+      );
+      
       final note = TrainingNote(
-        id: DateTime.now().millisecondsSinceEpoch.toString(),
-        date: _selectedDate,
+        id: existingNote?.id ?? DateTime.now().millisecondsSinceEpoch.toString(),
+        date: dateWithCurrentTime,
         bodyWeight: double.parse(_bodyWeightController.text),
         exercises: _exercises,
       );
@@ -71,16 +140,31 @@ class _NoteCreationScreenState extends State<NoteCreationScreen> {
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('ノートが保存されました')),
+          SnackBar(content: Text(existingNote != null ? 'ノートが更新されました' : 'ノートが保存されました')),
         );
-        Navigator.pushReplacement(
-          context,
-          MaterialPageRoute(
-            builder: (context) => NoteDetailScreen(note: note),
-          ),
-        );
+        // 画面遷移せずにそのまま入力フォームを維持
       }
     }
+  }
+
+  void _showProgressChart() {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('体重グラフ'),
+        content: const SizedBox(
+          width: double.maxFinite,
+          height: 300,
+          child: ProgressChart(),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: const Text('閉じる'),
+          ),
+        ],
+      ),
+    );
   }
 
 
@@ -92,18 +176,63 @@ class _NoteCreationScreenState extends State<NoteCreationScreen> {
         backgroundColor: const Color(0xFF8B4513),
         foregroundColor: Colors.white,
         elevation: 2,
+        leading: IconButton(
+          icon: const Icon(Icons.bar_chart),
+          onPressed: _showProgressChart,
+        ),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.calendar_month),
+            onPressed: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => const CalendarScreen(),
+                ),
+              );
+            },
+          ),
+        ],
       ),
       backgroundColor: const Color(0xFFFAF6F0),
-      body: Container(
-        decoration: const BoxDecoration(
-          color: Color(0xFFFAF6F0),
-        ),
-        child: Form(
-          key: _formKey,
-          child: Column(
-            children: [
-              Expanded(
-                child: SingleChildScrollView(
+      body: GestureDetector(
+        onPanUpdate: (details) {
+          // Detect horizontal swipe direction
+        },
+        onPanEnd: (details) {
+          // Handle swipe completion
+          if (details.velocity.pixelsPerSecond.dx > 500) {
+            // Right swipe - go to previous day
+            final previousDay = DateTime(_selectedDate.year, _selectedDate.month, _selectedDate.day - 1);
+            _switchToDate(previousDay, true);
+          } else if (details.velocity.pixelsPerSecond.dx < -500) {
+            // Left swipe - go to next day
+            final nextDay = DateTime(_selectedDate.year, _selectedDate.month, _selectedDate.day + 1);
+            _switchToDate(nextDay, false);
+          }
+        },
+        child: Container(
+          decoration: const BoxDecoration(
+            color: Color(0xFFFAF6F0),
+          ),
+          child: AnimatedBuilder(
+            animation: _slideAnimation,
+            builder: (context, child) {
+              return Transform.translate(
+                offset: Offset(
+                  (1.0 - _slideAnimation.value) * MediaQuery.of(context).size.width * 0.3,
+                  0.0,
+                ),
+                child: Transform.scale(
+                  scale: 0.8 + (_slideAnimation.value * 0.2),
+                  child: Opacity(
+                    opacity: _slideAnimation.value,
+                    child: Form(
+                      key: _formKey,
+                      child: Column(
+                        children: [
+                          Expanded(
+                            child: SingleChildScrollView(
                   padding: const EdgeInsets.fromLTRB(32.0, 16.0, 24.0, 16.0),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -232,41 +361,40 @@ class _NoteCreationScreenState extends State<NoteCreationScreen> {
                       }).toList(),
                     ],
                   ),
-                ),
-              ),
-              Container(
-                padding: const EdgeInsets.all(16.0),
-                decoration: BoxDecoration(
-                  color: Colors.white.withOpacity(0.9),
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.black.withOpacity(0.1),
-                      blurRadius: 4,
-                      offset: const Offset(0, -2),
+                            ),
+                          ),
+                          Container(
+                            padding: const EdgeInsets.all(16.0),
+                            decoration: const BoxDecoration(
+                              color: Color(0xFFFAF6F0),
+                            ),
+                            child: ElevatedButton(
+                              onPressed: _saveNote,
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: const Color(0xFF8B4513),
+                                foregroundColor: Colors.white,
+                                padding: const EdgeInsets.symmetric(vertical: 16),
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(8),
+                                ),
+                                elevation: 2,
+                              ),
+                              child: const Text(
+                                '保存',
+                                style: TextStyle(
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
                     ),
-                  ],
-                ),
-                child: ElevatedButton(
-                  onPressed: _saveNote,
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color(0xFF8B4513),
-                    foregroundColor: Colors.white,
-                    padding: const EdgeInsets.symmetric(vertical: 16),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                    elevation: 4,
                   ),
-                  child: const Text(
-                    '📖 ノートを保存',
-                    style: TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
                 ),
-              ),
-            ],
+              );
+            },
           ),
         ),
       ),
@@ -292,7 +420,6 @@ class ExerciseCard extends StatefulWidget {
 
 class _ExerciseCardState extends State<ExerciseCard> {
   late final TextEditingController _nameController;
-  late final TextEditingController _intervalController;
   late final TextEditingController _memoController;
   late List<TrainingSet> _sets;
 
@@ -300,7 +427,6 @@ class _ExerciseCardState extends State<ExerciseCard> {
   void initState() {
     super.initState();
     _nameController = TextEditingController(text: widget.exercise.name);
-    _intervalController = TextEditingController(text: widget.exercise.interval.toString());
     _memoController = TextEditingController(text: widget.exercise.memo ?? '');
     _sets = List.from(widget.exercise.sets);
   }
@@ -308,7 +434,6 @@ class _ExerciseCardState extends State<ExerciseCard> {
   @override
   void dispose() {
     _nameController.dispose();
-    _intervalController.dispose();
     _memoController.dispose();
     super.dispose();
   }
@@ -316,7 +441,6 @@ class _ExerciseCardState extends State<ExerciseCard> {
   void _updateExercise() {
     final exercise = Exercise(
       name: _nameController.text,
-      interval: int.tryParse(_intervalController.text) ?? 0,
       sets: _sets,
       memo: _memoController.text.isEmpty ? null : _memoController.text,
     );
@@ -403,38 +527,6 @@ class _ExerciseCardState extends State<ExerciseCard> {
                 color: Colors.red,
               ),
             ],
-          ),
-          const SizedBox(height: 16),
-          TextFormField(
-            controller: _intervalController,
-            decoration: InputDecoration(
-              labelText: 'インターバル (秒)',
-              labelStyle: const TextStyle(
-                color: Color(0xFF8B4513),
-                fontFamily: 'serif',
-              ),
-              border: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(8),
-                borderSide: const BorderSide(
-                  color: Color(0xFFD7CCC8),
-                ),
-              ),
-              focusedBorder: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(8),
-                borderSide: const BorderSide(
-                  color: Color(0xFF8B4513),
-                  width: 2,
-                ),
-              ),
-              fillColor: Colors.white,
-              filled: true,
-            ),
-            style: const TextStyle(
-              fontFamily: 'serif',
-              color: Color(0xFF5D4037),
-            ),
-            keyboardType: TextInputType.number,
-            onChanged: (_) => _updateExercise(),
           ),
           const SizedBox(height: 16),
           Row(

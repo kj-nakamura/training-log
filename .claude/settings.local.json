@@ -34,7 +34,10 @@
       "Bash(grep:*)",
       "Bash(rg:*)",
       "Bash(echo:*)",
-      "Bash(flutter create:*)"
+      "Bash(flutter create:*)",
+      "Bash(flutter pub:*)",
+      "Bash(flutter analyze:*)",
+      "Bash(flutter:*)"
     ],
     "deny": [
       "Bash(rm:*)"
