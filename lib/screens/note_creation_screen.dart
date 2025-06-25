@@ -4,6 +4,7 @@ import '../models/training_note.dart';
 import '../models/exercise.dart';
 import '../models/training_set.dart';
 import '../services/storage_service.dart';
+import 'note_detail_screen.dart';
 
 class NoteCreationScreen extends StatefulWidget {
   const NoteCreationScreen({Key? key}) : super(key: key);
@@ -17,8 +18,22 @@ class _NoteCreationScreenState extends State<NoteCreationScreen> {
   final _bodyWeightController = TextEditingController();
   final StorageService _storageService = StorageService();
   
-  DateTime _selectedDate = DateTime.now();
+  final DateTime _selectedDate = DateTime.now();
   List<Exercise> _exercises = [];
+
+  @override
+  void initState() {
+    super.initState();
+    // Initialize with 3 empty exercises
+    for (int i = 0; i < 3; i++) {
+      _exercises.add(Exercise(
+        name: '',
+        interval: 0,
+        sets: [TrainingSet(weight: 0, reps: 0)], // Start with 1 set
+        memo: '',
+      ));
+    }
+  }
 
   @override
   void dispose() {
@@ -58,24 +73,16 @@ class _NoteCreationScreenState extends State<NoteCreationScreen> {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('ノートが保存されました')),
         );
-        Navigator.pop(context);
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(
+            builder: (context) => NoteDetailScreen(note: note),
+          ),
+        );
       }
     }
   }
 
-  Future<void> _selectDate() async {
-    final DateTime? picked = await showDatePicker(
-      context: context,
-      initialDate: _selectedDate,
-      firstDate: DateTime(2020),
-      lastDate: DateTime.now(),
-    );
-    if (picked != null) {
-      setState(() {
-        _selectedDate = picked;
-      });
-    }
-  }
 
   @override
   Widget build(BuildContext context) {
@@ -141,14 +148,6 @@ class _NoteCreationScreenState extends State<NoteCreationScreen> {
                                     fontFamily: 'serif',
                                     color: Color(0xFF5D4037),
                                   ),
-                                ),
-                                const Spacer(),
-                                TextButton(
-                                  onPressed: _selectDate,
-                                  style: TextButton.styleFrom(
-                                    foregroundColor: const Color(0xFF8B4513),
-                                  ),
-                                  child: const Text('変更'),
                                 ),
                               ],
                             ),
