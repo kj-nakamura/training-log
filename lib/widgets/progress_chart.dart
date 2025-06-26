@@ -39,10 +39,12 @@ class _ProgressChartState extends State<ProgressChart> {
   List<FlSpot> _generateChartData() {
     if (_notes.isEmpty) return [];
 
-    return _notes.asMap().entries.map((entry) {
+    return _notes.asMap().entries
+        .where((entry) => entry.value.bodyWeight != null)
+        .map((entry) {
       final index = entry.key;
       final note = entry.value;
-      return FlSpot(index.toDouble(), note.bodyWeight);
+      return FlSpot(index.toDouble(), note.bodyWeight!);
     }).toList();
   }
 

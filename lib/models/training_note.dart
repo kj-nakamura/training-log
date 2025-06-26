@@ -3,13 +3,13 @@ import 'exercise.dart';
 class TrainingNote {
   final String id;
   final DateTime date;
-  final double bodyWeight;
+  final double? bodyWeight;
   final List<Exercise> exercises;
 
   TrainingNote({
     required this.id,
     required this.date,
-    required this.bodyWeight,
+    this.bodyWeight,
     required this.exercises,
   });
 
@@ -26,7 +26,7 @@ class TrainingNote {
     return TrainingNote(
       id: json['id'] ?? '',
       date: DateTime.parse(json['date']),
-      bodyWeight: json['bodyWeight']?.toDouble() ?? 0.0,
+      bodyWeight: json['bodyWeight']?.toDouble(),
       exercises: (json['exercises'] as List<dynamic>?)
           ?.map((exerciseJson) => Exercise.fromJson(exerciseJson))
           .toList() ?? [],

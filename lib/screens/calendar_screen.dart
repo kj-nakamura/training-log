@@ -274,7 +274,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
                             children: [
                               const SizedBox(height: 4),
                               Text(
-                                '体重: ${note.bodyWeight}kg',
+                                note.bodyWeight != null ? '体重: ${note.bodyWeight}kg' : '体重: 記録なし',
                                 style: const TextStyle(
                                   fontFamily: 'serif',
                                   color: Color(0xFF8B4513),

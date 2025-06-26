@@ -59,7 +59,7 @@ class _NoteCreationScreenState extends State<NoteCreationScreen> with TickerProv
     
     if (existingNote != null) {
       // Load existing note data
-      _bodyWeightController.text = existingNote.bodyWeight == 0 ? '' : existingNote.bodyWeight.toString();
+      _bodyWeightController.text = existingNote.bodyWeight?.toString() ?? '';
       _exercises = List.from(existingNote.exercises);
       _isEditMode = false; // Show in display mode for existing notes
     } else {
@@ -148,7 +148,7 @@ class _NoteCreationScreenState extends State<NoteCreationScreen> with TickerProv
       final note = TrainingNote(
         id: existingNote?.id ?? DateTime.now().millisecondsSinceEpoch.toString(),
         date: dateWithCurrentTime,
-        bodyWeight: double.parse(_bodyWeightController.text),
+        bodyWeight: _bodyWeightController.text.isEmpty ? null : double.parse(_bodyWeightController.text),
         exercises: _exercises,
       );
 
@@ -277,7 +277,7 @@ class _NoteCreationScreenState extends State<NoteCreationScreen> with TickerProv
       final newNote = TrainingNote(
         id: DateTime.now().millisecondsSinceEpoch.toString(),
         date: dateWithCurrentTime,
-        bodyWeight: double.tryParse(_bodyWeightController.text) ?? 0.0,
+        bodyWeight: _bodyWeightController.text.isEmpty ? null : double.tryParse(_bodyWeightController.text),
         exercises: _exercises,
       );
       await _storageService.saveNote(newNote);
@@ -563,15 +563,14 @@ class _NoteCreationScreenState extends State<NoteCreationScreen> with TickerProv
                               ),
                               keyboardType: const TextInputType.numberWithOptions(decimal: true),
                               validator: (value) {
-                                if (value == null || value.isEmpty) {
-                                  return '体重を入力してください';
-                                }
-                                final weight = double.tryParse(value);
-                                if (weight == null) {
-                                  return '正しい数値を入力してください';
-                                }
-                                if (weight <= 0) {
-                                  return '正しい体重を入力してください';
+                                if (value != null && value.isNotEmpty) {
+                                  final weight = double.tryParse(value);
+                                  if (weight == null) {
+                                    return '正しい数値を入力してください';
+                                  }
+                                  if (weight <= 0) {
+                                    return '正しい体重を入力してください';
+                                  }
                                 }
                                 return null;
                               },
@@ -747,7 +746,7 @@ class _NoteCreationScreenState extends State<NoteCreationScreen> with TickerProv
                               ],
                             )
                           : Text(
-                              '体重: ${_bodyWeightController.text.isNotEmpty ? _bodyWeightController.text : "記録なし"}kg',
+                              _bodyWeightController.text.isNotEmpty ? '体重: ${_bodyWeightController.text}kg' : '体重: 記録なし',
                               style: const TextStyle(
                                 fontSize: 16,
                                 fontFamily: 'serif',
@@ -1066,7 +1065,8 @@ class _ExerciseCardState extends State<ExerciseCard> {
               fontFamily: 'serif',
               color: Color(0xFF5D4037),
             ),
-            onChanged: (_) => _updateExercise(),
+            onFieldSubmitted: (_) => _updateExercise(),
+            onEditingComplete: _updateExercise,
           ),
           const SizedBox(height: 16),
           Row(
