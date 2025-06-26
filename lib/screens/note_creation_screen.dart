@@ -336,44 +336,27 @@ class _NoteCreationScreenState extends State<NoteCreationScreen> with TickerProv
         ],
       ),
       backgroundColor: const Color(0xFFFAF6F0),
-      body: GestureDetector(
-        onPanUpdate: (details) {
-          // Detect horizontal swipe direction
-        },
-        onPanEnd: (details) {
-          // Handle swipe completion
-          if (details.velocity.pixelsPerSecond.dx > 500) {
-            // Right swipe - go to previous day
-            final previousDay = DateTime(_selectedDate.year, _selectedDate.month, _selectedDate.day - 1);
-            _switchToDate(previousDay, true);
-          } else if (details.velocity.pixelsPerSecond.dx < -500) {
-            // Left swipe - go to next day
-            final nextDay = DateTime(_selectedDate.year, _selectedDate.month, _selectedDate.day + 1);
-            _switchToDate(nextDay, false);
-          }
-        },
-        child: Container(
-          decoration: const BoxDecoration(
-            color: Color(0xFFFAF6F0),
-          ),
-          child: AnimatedBuilder(
-            animation: _slideAnimation,
-            builder: (context, child) {
-              return Transform.translate(
-                offset: Offset(
-                  (1.0 - _slideAnimation.value) * MediaQuery.of(context).size.width * 0.3,
-                  0.0,
+      body: Container(
+        decoration: const BoxDecoration(
+          color: Color(0xFFFAF6F0),
+        ),
+        child: AnimatedBuilder(
+          animation: _slideAnimation,
+          builder: (context, child) {
+            return Transform.translate(
+              offset: Offset(
+                (1.0 - _slideAnimation.value) * MediaQuery.of(context).size.width * 0.3,
+                0.0,
+              ),
+              child: Transform.scale(
+                scale: 0.8 + (_slideAnimation.value * 0.2),
+                child: Opacity(
+                  opacity: _slideAnimation.value,
+                  child: _buildDisplayMode(),
                 ),
-                child: Transform.scale(
-                  scale: 0.8 + (_slideAnimation.value * 0.2),
-                  child: Opacity(
-                    opacity: _slideAnimation.value,
-                    child: _buildDisplayMode(),
-                  ),
-                ),
-              );
-            },
-          ),
+              ),
+            );
+          },
         ),
       ),
     );
@@ -419,15 +402,83 @@ class _NoteCreationScreenState extends State<NoteCreationScreen> with TickerProv
               children: [
                 Row(
                   children: [
-                    const Icon(Icons.calendar_today, color: Color(0xFF8B4513)),
-                    const SizedBox(width: 8),
-                    Text(
-                      '${DateFormat('yyyy年MM月dd日').format(_selectedDate)}のトレーニング',
-                      style: const TextStyle(
-                        fontSize: 18,
-                        fontWeight: FontWeight.bold,
-                        fontFamily: 'serif',
-                        color: Color(0xFF5D4037),
+                    // Left arrow button
+                    GestureDetector(
+                      onTap: () {
+                        final previousDay = DateTime(_selectedDate.year, _selectedDate.month, _selectedDate.day - 1);
+                        _switchToDate(previousDay, true);
+                      },
+                      child: Container(
+                        width: 60,
+                        height: 60,
+                        decoration: BoxDecoration(
+                          color: const Color(0xFF8B4513).withOpacity(0.1),
+                          borderRadius: BorderRadius.circular(30),
+                          border: Border.all(
+                            color: const Color(0xFF8B4513),
+                            width: 2,
+                          ),
+                        ),
+                        child: const Icon(
+                          Icons.chevron_left,
+                          color: Color(0xFF8B4513),
+                          size: 32,
+                        ),
+                      ),
+                    ),
+                    Expanded(
+                      child: Column(
+                        children: [
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              const Icon(Icons.calendar_today, color: Color(0xFF8B4513)),
+                              const SizedBox(width: 8),
+                              Text(
+                                '${DateFormat('yyyy年MM月dd日').format(_selectedDate)}',
+                                style: const TextStyle(
+                                  fontSize: 18,
+                                  fontWeight: FontWeight.bold,
+                                  fontFamily: 'serif',
+                                  color: Color(0xFF5D4037),
+                                ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 4),
+                          const Text(
+                            'のトレーニング',
+                            style: TextStyle(
+                              fontSize: 16,
+                              fontFamily: 'serif',
+                              color: Color(0xFF5D4037),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    // Right arrow button
+                    GestureDetector(
+                      onTap: () {
+                        final nextDay = DateTime(_selectedDate.year, _selectedDate.month, _selectedDate.day + 1);
+                        _switchToDate(nextDay, false);
+                      },
+                      child: Container(
+                        width: 60,
+                        height: 60,
+                        decoration: BoxDecoration(
+                          color: const Color(0xFF8B4513).withOpacity(0.1),
+                          borderRadius: BorderRadius.circular(30),
+                          border: Border.all(
+                            color: const Color(0xFF8B4513),
+                            width: 2,
+                          ),
+                        ),
+                        child: const Icon(
+                          Icons.chevron_right,
+                          color: Color(0xFF8B4513),
+                          size: 32,
+                        ),
                       ),
                     ),
                   ],
