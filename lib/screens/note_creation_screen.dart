@@ -27,10 +27,8 @@ class _NoteCreationScreenState extends State<NoteCreationScreen> with TickerProv
   List<Exercise> _exercises = [];
   late AnimationController _animationController;
   late Animation<double> _slideAnimation;
-  bool _isEditMode = true;
-  bool _isEditingBodyWeight = false;
-  Set<int> _editingExerciseIndices = {};
   bool _isInitialLoad = true;
+  bool _isEditingBodyWeight = false;
 
   @override
   void initState() {
@@ -62,7 +60,6 @@ class _NoteCreationScreenState extends State<NoteCreationScreen> with TickerProv
       // Load existing note data
       _bodyWeightController.text = existingNote.bodyWeight?.toString() ?? '';
       _exercises = List.from(existingNote.exercises);
-      _isEditMode = false; // Show in display mode for existing notes
     } else {
       // Initialize with 1 empty exercise and clear body weight
       _bodyWeightController.clear();
@@ -72,11 +69,9 @@ class _NoteCreationScreenState extends State<NoteCreationScreen> with TickerProv
         sets: [TrainingSet(weight: 0, reps: 0)], // Start with 1 set
         memo: '',
       ));
-      _isEditMode = true; // Start in edit mode for new notes
     }
     // Clear editing states
-    _isEditingBodyWeight = false;
-    _editingExerciseIndices.clear();
+    _isEditingBodyWeight = _bodyWeightController.text.isEmpty;
     setState(() {});
   }
 
@@ -92,16 +87,7 @@ class _NoteCreationScreenState extends State<NoteCreationScreen> with TickerProv
     // Start slide in animation
     _animationController.forward();
     
-    // Show brief feedback
-    if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('${DateFormat('yyyy/MM/dd').format(_selectedDate)}のノートに切り替えました'),
-          duration: const Duration(milliseconds: 1500),
-          backgroundColor: const Color(0xFF8B4513),
-        ),
-      );
-    }
+    // Show brief feedback removed
   }
 
   @override
@@ -114,11 +100,6 @@ class _NoteCreationScreenState extends State<NoteCreationScreen> with TickerProv
   void _addExercise() {
     // Check exercise limit (maximum 5 exercises)
     if (_exercises.length >= 5) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('種目は最大5つまで追加できます')),
-        );
-      }
       return;
     }
 
@@ -155,140 +136,85 @@ class _NoteCreationScreenState extends State<NoteCreationScreen> with TickerProv
 
       await _storageService.saveNote(note);
 
-      if (mounted) {
-        setState(() {
-          _isEditMode = false; // Switch to display mode after saving
-        });
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(existingNote != null ? 'ノートが更新されました' : 'ノートが保存されました')),
-        );
-      }
+      // Note saved
     }
   }
 
-  void _toggleBodyWeightEdit() {
-    setState(() {
-      _isEditingBodyWeight = !_isEditingBodyWeight;
-    });
-  }
-
-  void _toggleExerciseEdit(int index) {
-    setState(() {
-      if (_editingExerciseIndices.contains(index)) {
-        _editingExerciseIndices.remove(index);
-      } else {
-        _editingExerciseIndices.add(index);
-      }
-    });
-  }
-
-  Future<void> _saveBodyWeight() async {
+  Future<void> _saveBodyWeightUnified() async {
     if (_bodyWeightController.text.isNotEmpty) {
       final weight = double.tryParse(_bodyWeightController.text);
       if (weight != null && weight > 0) {
-        // Get existing note and update only body weight
         final existingNote = await _storageService.getNoteForDate(_selectedDate);
-        if (existingNote != null) {
-          final updatedNote = TrainingNote(
-            id: existingNote.id,
-            date: existingNote.date,
-            bodyWeight: weight,
-            exercises: existingNote.exercises,
-          );
-          await _storageService.saveNote(updatedNote);
-        }
-        setState(() {
-          _isEditingBodyWeight = false;
-        });
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('体重が更新されました')),
-          );
-        }
-      }
-    }
-  }
-
-  Future<void> _saveExercise(int index) async {
-    final existingNote = await _storageService.getNoteForDate(_selectedDate);
-    if (existingNote != null) {
-      final updatedNote = TrainingNote(
-        id: existingNote.id,
-        date: existingNote.date,
-        bodyWeight: existingNote.bodyWeight,
-        exercises: _exercises,
-      );
-      await _storageService.saveNote(updatedNote);
-      setState(() {
-        _editingExerciseIndices.remove(index);
-      });
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('種目が更新されました')),
+        
+        final now = DateTime.now();
+        final dateWithCurrentTime = DateTime(
+          _selectedDate.year,
+          _selectedDate.month,
+          _selectedDate.day,
+          now.hour,
+          now.minute,
+          now.second,
         );
+        
+        final note = TrainingNote(
+          id: existingNote?.id ?? DateTime.now().millisecondsSinceEpoch.toString(),
+          date: dateWithCurrentTime,
+          bodyWeight: weight,
+          exercises: existingNote?.exercises ?? _exercises,
+        );
+        
+        await _storageService.saveNote(note);
+        // Body weight saved
       }
     }
   }
 
-  Future<void> _addExerciseInDisplayMode() async {
+
+
+
+  Future<void> _saveExerciseUnified(int index) async {
+    final exercise = _exercises[index];
+    if (exercise.name.trim().isEmpty) {
+      // Show validation error but don't save
+      return;
+    }
+    
+    final existingNote = await _storageService.getNoteForDate(_selectedDate);
+    
+    final now = DateTime.now();
+    final dateWithCurrentTime = DateTime(
+      _selectedDate.year,
+      _selectedDate.month,
+      _selectedDate.day,
+      now.hour,
+      now.minute,
+      now.second,
+    );
+    
+    final note = TrainingNote(
+      id: existingNote?.id ?? DateTime.now().millisecondsSinceEpoch.toString(),
+      date: dateWithCurrentTime,
+      bodyWeight: existingNote?.bodyWeight ?? (_bodyWeightController.text.isNotEmpty ? double.tryParse(_bodyWeightController.text) : null),
+      exercises: _exercises,
+    );
+    
+    await _storageService.saveNote(note);
+    // Exercise saved
+  }
+
+  void _addExerciseUnified() {
     // Check exercise limit (maximum 5 exercises)
     if (_exercises.length >= 5) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('種目は最大5つまで追加できます')),
-        );
-      }
       return;
     }
 
-    // Add new empty exercise
-    final newExercise = Exercise(
-      name: '',
-      sets: [TrainingSet(weight: 0, reps: 0)],
-      memo: '',
-    );
-    
     setState(() {
-      _exercises.add(newExercise);
-      _editingExerciseIndices.add(_exercises.length - 1); // Put new exercise in edit mode
+      _exercises.add(Exercise(
+        name: '',
+        sets: [TrainingSet(weight: 0, reps: 0)],
+        memo: '',
+      ));
     });
-
-    // Save to database
-    final existingNote = await _storageService.getNoteForDate(_selectedDate);
-    if (existingNote != null) {
-      final updatedNote = TrainingNote(
-        id: existingNote.id,
-        date: existingNote.date,
-        bodyWeight: existingNote.bodyWeight,
-        exercises: _exercises,
-      );
-      await _storageService.saveNote(updatedNote);
-    } else {
-      // Create new note if none exists
-      final now = DateTime.now();
-      final dateWithCurrentTime = DateTime(
-        _selectedDate.year,
-        _selectedDate.month,
-        _selectedDate.day,
-        now.hour,
-        now.minute,
-        now.second,
-      );
-      
-      final newNote = TrainingNote(
-        id: DateTime.now().millisecondsSinceEpoch.toString(),
-        date: dateWithCurrentTime,
-        bodyWeight: _bodyWeightController.text.isEmpty ? null : double.tryParse(_bodyWeightController.text),
-        exercises: _exercises,
-      );
-      await _storageService.saveNote(newNote);
-    }
-
-    if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('新しい種目が追加されました')),
-      );
-    }
   }
 
   Future<void> _deleteExerciseWithConfirmation(int index) async {
@@ -357,17 +283,6 @@ class _NoteCreationScreenState extends State<NoteCreationScreen> with TickerProv
   Future<void> _deleteExercise(int index) async {
     setState(() {
       _exercises.removeAt(index);
-      _editingExerciseIndices.remove(index);
-      // Adjust indices for remaining exercises
-      final newEditingIndices = <int>{};
-      for (final editingIndex in _editingExerciseIndices) {
-        if (editingIndex > index) {
-          newEditingIndices.add(editingIndex - 1);
-        } else {
-          newEditingIndices.add(editingIndex);
-        }
-      }
-      _editingExerciseIndices = newEditingIndices;
     });
 
     // Save to database
@@ -382,11 +297,7 @@ class _NoteCreationScreenState extends State<NoteCreationScreen> with TickerProv
       await _storageService.saveNote(updatedNote);
     }
 
-    if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('種目が削除されました')),
-      );
-    }
+    // Exercise deleted
   }
 
   void _showReport() {
@@ -457,7 +368,7 @@ class _NoteCreationScreenState extends State<NoteCreationScreen> with TickerProv
                   scale: 0.8 + (_slideAnimation.value * 0.2),
                   child: Opacity(
                     opacity: _slideAnimation.value,
-                    child: _isEditMode ? _buildEditMode() : _buildDisplayMode(),
+                    child: _buildDisplayMode(),
                   ),
                 ),
               );
@@ -468,176 +379,6 @@ class _NoteCreationScreenState extends State<NoteCreationScreen> with TickerProv
     );
   }
 
-  Widget _buildEditMode() {
-    return Form(
-      key: _formKey,
-      child: Column(
-        children: [
-          Expanded(
-            child: SingleChildScrollView(
-                  padding: const EdgeInsets.fromLTRB(32.0, 16.0, 24.0, 16.0),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.stretch,
-                    children: [
-                      // Red margin line (like notebook paper)
-                      Container(
-                        height: 2,
-                        margin: const EdgeInsets.only(bottom: 20),
-                        decoration: const BoxDecoration(
-                          color: Color(0xFFFF6B6B),
-                          borderRadius: BorderRadius.all(Radius.circular(1)),
-                        ),
-                      ),
-                      Container(
-                        margin: const EdgeInsets.only(bottom: 16),
-                        padding: const EdgeInsets.all(20.0),
-                        decoration: BoxDecoration(
-                          color: Colors.white.withOpacity(0.8),
-                          borderRadius: BorderRadius.circular(12),
-                          boxShadow: [
-                            BoxShadow(
-                              color: Colors.black.withOpacity(0.1),
-                              blurRadius: 8,
-                              offset: const Offset(0, 2),
-                            ),
-                          ],
-                          border: Border.all(
-                            color: const Color(0xFFE8E1D9),
-                            width: 1,
-                          ),
-                        ),
-                        child: Column(
-                          children: [
-                            Row(
-                              children: [
-                                const Icon(Icons.calendar_today, color: Color(0xFF8B4513)),
-                                const SizedBox(width: 8),
-                                Text(
-                                  '日付: ${DateFormat('yyyy/MM/dd').format(_selectedDate)}',
-                                  style: const TextStyle(
-                                    fontSize: 16,
-                                    fontFamily: 'serif',
-                                    color: Color(0xFF5D4037),
-                                  ),
-                                ),
-                              ],
-                            ),
-                            const SizedBox(height: 16),
-                            TextFormField(
-                              controller: _bodyWeightController,
-                              decoration: InputDecoration(
-                                labelText: '体重 (kg)',
-                                labelStyle: const TextStyle(
-                                  color: Color(0xFF8B4513),
-                                  fontFamily: 'serif',
-                                ),
-                                border: OutlineInputBorder(
-                                  borderRadius: BorderRadius.circular(8),
-                                  borderSide: const BorderSide(
-                                    color: Color(0xFFD7CCC8),
-                                  ),
-                                ),
-                                focusedBorder: OutlineInputBorder(
-                                  borderRadius: BorderRadius.circular(8),
-                                  borderSide: const BorderSide(
-                                    color: Color(0xFF8B4513),
-                                    width: 2,
-                                  ),
-                                ),
-                                fillColor: Colors.white,
-                                filled: true,
-                              ),
-                              style: const TextStyle(
-                                fontFamily: 'serif',
-                                color: Color(0xFF5D4037),
-                              ),
-                              keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                              validator: (value) {
-                                if (value != null && value.isNotEmpty) {
-                                  final weight = double.tryParse(value);
-                                  if (weight == null) {
-                                    return '正しい数値を入力してください';
-                                  }
-                                  if (weight <= 0) {
-                                    return '正しい体重を入力してください';
-                                  }
-                                }
-                                return null;
-                              },
-                            ),
-                          ],
-                        ),
-                      ),
-                      const SizedBox(height: 16),
-                      Container(
-                        margin: const EdgeInsets.only(left: 8),
-                        child: Row(
-                          children: [
-                            const Text(
-                              '🏋️ 種目',
-                              style: TextStyle(
-                                fontSize: 20,
-                                fontWeight: FontWeight.bold,
-                                fontFamily: 'serif',
-                                color: Color(0xFF5D4037),
-                              ),
-                            ),
-                            const Spacer(),
-                            if (_exercises.length < 5)
-                              IconButton(
-                                onPressed: _addExercise,
-                                icon: const Icon(Icons.add_circle),
-                                color: const Color(0xFF8B4513),
-                                iconSize: 28,
-                              ),
-                          ],
-                        ),
-                      ),
-                      ..._exercises.asMap().entries.map((entry) {
-                        final index = entry.key;
-                        return ExerciseCard(
-                          key: ValueKey('edit_${_selectedDate.toIso8601String()}_$index'),
-                          exercise: entry.value,
-                          onChanged: (exercise) {
-                            setState(() {
-                              _exercises[index] = exercise;
-                            });
-                          },
-                        );
-                      }).toList(),
-                    ],
-                  ),
-                            ),
-                          ),
-                          Container(
-                            padding: const EdgeInsets.all(16.0),
-                            decoration: const BoxDecoration(
-                              color: Color(0xFFFAF6F0),
-                            ),
-                            child: ElevatedButton(
-                              onPressed: _saveNote,
-                              style: ElevatedButton.styleFrom(
-                                backgroundColor: const Color(0xFF8B4513),
-                                foregroundColor: Colors.white,
-                                padding: const EdgeInsets.symmetric(vertical: 16),
-                                shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(8),
-                                ),
-                                elevation: 2,
-                              ),
-                              child: const Text(
-                                '保存',
-                                style: TextStyle(
-                                  fontSize: 16,
-                                  fontWeight: FontWeight.bold,
-                                ),
-                              ),
-                            ),
-                          ),
-        ],
-      ),
-    );
-  }
 
   Widget _buildDisplayMode() {
     return SingleChildScrollView(
@@ -722,34 +463,59 @@ class _NoteCreationScreenState extends State<NoteCreationScreen> with TickerProv
                                       color: Color(0xFF5D4037),
                                     ),
                                     keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                                    textInputAction: TextInputAction.done,
                                   ),
                                 ),
                                 const SizedBox(width: 8),
                                 IconButton(
                                   icon: const Icon(Icons.check, color: Colors.green),
-                                  onPressed: _saveBodyWeight,
+                                  onPressed: () {
+                                    _saveBodyWeightUnified();
+                                    setState(() => _isEditingBodyWeight = false);
+                                  },
                                 ),
                                 IconButton(
                                   icon: const Icon(Icons.close, color: Colors.red),
-                                  onPressed: _toggleBodyWeightEdit,
+                                  onPressed: () => setState(() => _isEditingBodyWeight = false),
                                 ),
                               ],
                             )
-                          : Text(
-                              _bodyWeightController.text.isNotEmpty ? '体重: ${_bodyWeightController.text}kg' : '体重: 記録なし',
-                              style: const TextStyle(
-                                fontSize: 16,
-                                fontFamily: 'serif',
-                                color: Color(0xFF5D4037),
-                              ),
+                          : Row(
+                              children: [
+                                Expanded(
+                                  child: GestureDetector(
+                                    onTap: () => setState(() => _isEditingBodyWeight = true),
+                                    child: Container(
+                                      padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 8),
+                                      decoration: BoxDecoration(
+                                        border: Border.all(color: const Color(0xFFE8E1D9)),
+                                        borderRadius: BorderRadius.circular(8),
+                                        color: Colors.grey.withOpacity(0.05),
+                                      ),
+                                      child: Text(
+                                        _bodyWeightController.text.isNotEmpty 
+                                            ? '体重: ${_bodyWeightController.text}kg'
+                                            : '体重を入力',
+                                        style: TextStyle(
+                                          fontSize: 16,
+                                          fontFamily: 'serif',
+                                          color: _bodyWeightController.text.isNotEmpty 
+                                              ? const Color(0xFF5D4037) 
+                                              : Colors.grey,
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                                const SizedBox(width: 8),
+                                IconButton(
+                                  icon: const Icon(Icons.edit, size: 18),
+                                  color: const Color(0xFF8B4513),
+                                  onPressed: () => setState(() => _isEditingBodyWeight = true),
+                                ),
+                              ],
                             ),
                     ),
-                    if (!_isEditingBodyWeight)
-                      IconButton(
-                        icon: const Icon(Icons.edit, size: 18),
-                        color: const Color(0xFF8B4513),
-                        onPressed: _toggleBodyWeightEdit,
-                      ),
                   ],
                 ),
               ],
@@ -767,131 +533,44 @@ class _NoteCreationScreenState extends State<NoteCreationScreen> with TickerProv
             ),
           ),
           const SizedBox(height: 16),
-          ..._exercises.asMap().entries.where((entry) => entry.value.name.isNotEmpty || _editingExerciseIndices.contains(entry.key)).map((exerciseEntry) {
+          ..._exercises.asMap().entries.map((exerciseEntry) {
             final exerciseIndex = exerciseEntry.key;
             final exercise = exerciseEntry.value;
-            final isEditing = _editingExerciseIndices.contains(exerciseIndex);
             
-            return Container(
-              margin: const EdgeInsets.only(bottom: 16),
-              padding: const EdgeInsets.all(20.0),
-              decoration: BoxDecoration(
-                color: Colors.white.withOpacity(0.9),
-                borderRadius: BorderRadius.circular(12),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withOpacity(0.1),
-                    blurRadius: 8,
-                    offset: const Offset(0, 2),
-                  ),
-                ],
-                border: Border.all(
-                  color: const Color(0xFFE8E1D9),
-                  width: 1,
-                ),
-              ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    children: [
-                      Expanded(
-                        child: Text(
-                          exercise.name,
-                          style: const TextStyle(
-                            fontSize: 18,
-                            fontWeight: FontWeight.bold,
-                            fontFamily: 'serif',
-                            color: Color(0xFF5D4037),
-                          ),
-                        ),
-                      ),
-                      if (!isEditing)
-                        IconButton(
-                          icon: const Icon(Icons.edit, size: 18),
-                          color: const Color(0xFF8B4513),
-                          onPressed: () => _toggleExerciseEdit(exerciseIndex),
-                        ),
-                      if (isEditing) ...[
-                        IconButton(
-                          icon: const Icon(Icons.delete_outline, size: 18),
-                          color: Colors.red.withOpacity(0.7),
-                          onPressed: () => _deleteExerciseWithConfirmation(exerciseIndex),
-                          tooltip: '種目を削除',
-                        ),
-                        IconButton(
-                          icon: const Icon(Icons.check, color: Colors.green),
-                          onPressed: () => _saveExercise(exerciseIndex),
-                        ),
-                        IconButton(
-                          icon: const Icon(Icons.close, color: Colors.red),
-                          onPressed: () => _toggleExerciseEdit(exerciseIndex),
-                        ),
-                      ],
-                    ],
-                  ),
-                  const SizedBox(height: 12),
-                  if (isEditing)
-                    ExerciseCard(
-                      key: ValueKey('display_${_selectedDate.toIso8601String()}_$exerciseIndex'),
-                      exercise: exercise,
-                      onChanged: (updatedExercise) {
-                        setState(() {
-                          _exercises[exerciseIndex] = updatedExercise;
-                        });
-                      },
-                    )
-                  else ...[
-                    ...exercise.sets.asMap().entries.map((entry) {
-                      final index = entry.key;
-                      final set = entry.value;
-                      if (set.weight == 0 && set.reps == 0) return const SizedBox.shrink();
-                      return Padding(
-                        padding: const EdgeInsets.symmetric(vertical: 2),
-                        child: Text(
-                          '${index + 1}セット目: ${set.weight}kg × ${set.reps}回',
-                          style: const TextStyle(
-                            fontSize: 14,
-                            fontFamily: 'serif',
-                            color: Color(0xFF8B4513),
-                          ),
-                        ),
-                      );
-                    }).toList(),
-                    if (exercise.memo != null && exercise.memo!.isNotEmpty) ...[
-                      const SizedBox(height: 8),
-                      Container(
-                        padding: const EdgeInsets.all(8),
-                        decoration: BoxDecoration(
-                          color: const Color(0xFFFFF8E1),
-                          borderRadius: BorderRadius.circular(6),
-                          border: Border.all(
-                            color: const Color(0xFFFFCC02),
-                            width: 1,
-                          ),
-                        ),
-                        child: Text(
-                          'メモ: ${exercise.memo}',
-                          style: const TextStyle(
-                            fontSize: 12,
-                            fontFamily: 'serif',
-                            color: Color(0xFF5D4037),
-                            fontStyle: FontStyle.italic,
-                          ),
-                        ),
-                      ),
-                    ],
-                  ],
-                ],
-              ),
+            return EditModeExerciseCard(
+              key: ValueKey('unified_${_selectedDate.toIso8601String()}_$exerciseIndex'),
+              exercise: exercise,
+              selectedDate: _selectedDate,
+              onChanged: (updatedExercise) {
+                setState(() {
+                  _exercises[exerciseIndex] = updatedExercise;
+                });
+              },
+              onSave: () => _saveExerciseUnified(exerciseIndex),
+              onDelete: () => _deleteExerciseWithConfirmation(exerciseIndex),
             );
           }).toList(),
+          // Show message when no exercises recorded
+          if (_exercises.where((exercise) => exercise.name.isNotEmpty).toList().isEmpty)
+            Container(
+              padding: const EdgeInsets.all(20),
+              child: const Text(
+                'トレーニング内容が記録されていません',
+                style: TextStyle(
+                  fontSize: 16,
+                  fontFamily: 'serif',
+                  color: Color(0xFF999999),
+                  fontStyle: FontStyle.italic,
+                ),
+                textAlign: TextAlign.center,
+              ),
+            ),
           // Add exercise button (show when less than 5 exercises)
           if (_exercises.length < 5)
             Container(
               margin: const EdgeInsets.only(bottom: 16),
               child: OutlinedButton.icon(
-                onPressed: _addExerciseInDisplayMode,
+                onPressed: _addExerciseUnified,
                 icon: const Icon(Icons.add_circle_outline),
                 label: const Text('種目を追加'),
                 style: OutlinedButton.styleFrom(
@@ -914,21 +593,238 @@ class _NoteCreationScreenState extends State<NoteCreationScreen> with TickerProv
                 ),
               ),
             ),
-          if (_exercises.where((exercise) => exercise.name.isNotEmpty).toList().isEmpty && _editingExerciseIndices.isEmpty)
-            Container(
-              padding: const EdgeInsets.all(20),
-              child: const Text(
-                'トレーニング内容が記録されていません',
-                style: TextStyle(
-                  fontSize: 16,
-                  fontFamily: 'serif',
-                  color: Color(0xFF999999),
-                  fontStyle: FontStyle.italic,
-                ),
-                textAlign: TextAlign.center,
-              ),
-            ),
         ],
+      ),
+    );
+  }
+}
+
+class EditModeExerciseCard extends StatefulWidget {
+  final Exercise exercise;
+  final DateTime selectedDate;
+  final Function(Exercise) onChanged;
+  final VoidCallback onSave;
+  final VoidCallback onDelete;
+
+  const EditModeExerciseCard({
+    Key? key,
+    required this.exercise,
+    required this.selectedDate,
+    required this.onChanged,
+    required this.onSave,
+    required this.onDelete,
+  }) : super(key: key);
+
+  @override
+  State<EditModeExerciseCard> createState() => _EditModeExerciseCardState();
+}
+
+class _EditModeExerciseCardState extends State<EditModeExerciseCard> {
+  late final TextEditingController _nameController;
+  late List<TrainingSet> _sets;
+  final _formKey = GlobalKey<FormState>();
+  bool _isEditing = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _nameController = TextEditingController(text: widget.exercise.name);
+    _sets = List.from(widget.exercise.sets);
+    _isEditing = widget.exercise.name.isEmpty; // Start in edit mode if name is empty
+  }
+
+  @override
+  void didUpdateWidget(EditModeExerciseCard oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    _nameController.text = widget.exercise.name;
+    _sets = List.from(widget.exercise.sets);
+  }
+
+  @override
+  void dispose() {
+    _nameController.dispose();
+    super.dispose();
+  }
+
+  void _updateExercise() {
+    final exercise = Exercise(
+      name: _nameController.text.trim(),
+      sets: _sets,
+      memo: null,
+    );
+    widget.onChanged(exercise);
+  }
+
+  void _addSet() {
+    if (_sets.length < 5) {
+      setState(() {
+        _sets.add(TrainingSet(weight: 0, reps: 0));
+        _updateExercise();
+      });
+    }
+  }
+
+  void _removeSet(int index) {
+    if (_sets.length > 1) {
+      setState(() {
+        _sets.removeAt(index);
+        _updateExercise();
+      });
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 16),
+      padding: const EdgeInsets.all(20.0),
+      decoration: BoxDecoration(
+        color: Colors.white.withOpacity(0.9),
+        borderRadius: BorderRadius.circular(12),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.1),
+            blurRadius: 8,
+            offset: const Offset(0, 2),
+          ),
+        ],
+        border: Border.all(
+          color: const Color(0xFFE8E1D9),
+          width: 1,
+        ),
+      ),
+      child: Form(
+        key: _formKey,
+        child: Column(
+          children: [
+            Row(
+              children: [
+                Expanded(
+                  child: _isEditing 
+                    ? TextFormField(
+                        controller: _nameController,
+                        decoration: InputDecoration(
+                          labelText: '種目名 *',
+                          labelStyle: const TextStyle(
+                            color: Color(0xFF8B4513),
+                            fontFamily: 'serif',
+                          ),
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(8),
+                            borderSide: const BorderSide(
+                              color: Color(0xFFD7CCC8),
+                            ),
+                          ),
+                          focusedBorder: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(8),
+                            borderSide: const BorderSide(
+                              color: Color(0xFF8B4513),
+                              width: 2,
+                            ),
+                          ),
+                          fillColor: Colors.white,
+                          filled: true,
+                        ),
+                        style: const TextStyle(
+                          fontFamily: 'serif',
+                          color: Color(0xFF5D4037),
+                        ),
+                        textInputAction: TextInputAction.done,
+                        onFieldSubmitted: (_) => _updateExercise(),
+                        validator: (value) {
+                          if (value == null || value.trim().isEmpty) {
+                            return '種目名を入力してください';
+                          }
+                          return null;
+                        },
+                      )
+                    : GestureDetector(
+                        onTap: () => setState(() => _isEditing = true),
+                        child: Container(
+                          width: double.infinity,
+                          padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 12),
+                          decoration: BoxDecoration(
+                            border: Border.all(color: const Color(0xFFE8E1D9)),
+                            borderRadius: BorderRadius.circular(8),
+                            color: Colors.grey.withOpacity(0.05),
+                          ),
+                          child: Text(
+                            _nameController.text.isNotEmpty ? _nameController.text : '種目名を入力',
+                            style: TextStyle(
+                              fontSize: 16,
+                              fontFamily: 'serif',
+                              color: _nameController.text.isNotEmpty ? const Color(0xFF5D4037) : Colors.grey,
+                            ),
+                          ),
+                        ),
+                      ),
+                ),
+                const SizedBox(width: 8),
+                if (_isEditing) ...[
+                  IconButton(
+                    icon: const Icon(Icons.check, color: Colors.green),
+                    onPressed: () {
+                      if (_formKey.currentState!.validate()) {
+                        _updateExercise();
+                        widget.onSave();
+                        setState(() => _isEditing = false);
+                      }
+                    },
+                  ),
+                  IconButton(
+                    icon: const Icon(Icons.close, color: Colors.red),
+                    onPressed: () => setState(() => _isEditing = false),
+                  ),
+                ] else ...[
+                  IconButton(
+                    icon: const Icon(Icons.edit, size: 18),
+                    color: const Color(0xFF8B4513),
+                    onPressed: () => setState(() => _isEditing = true),
+                  ),
+                ],
+                IconButton(
+                  icon: const Icon(Icons.delete_outline, color: Colors.red),
+                  onPressed: widget.onDelete,
+                ),
+              ],
+            ),
+            const SizedBox(height: 16),
+            Row(
+              children: [
+                const Text(
+                  'セット',
+                  style: TextStyle(
+                    fontWeight: FontWeight.bold,
+                    fontFamily: 'serif',
+                    color: Color(0xFF5D4037),
+                  ),
+                ),
+                const Spacer(),
+                if (_sets.length < 5)
+                  IconButton(
+                    onPressed: _addSet,
+                    icon: const Icon(Icons.add),
+                    color: const Color(0xFF8B4513),
+                  ),
+              ],
+            ),
+            ..._sets.asMap().entries.map((entry) {
+              final index = entry.key;
+              final set = entry.value;
+              return SetRow(
+                setNumber: index + 1,
+                set: set,
+                onChanged: (newSet) {
+                  setState(() {
+                    _sets[index] = newSet;
+                    _updateExercise();
+                  });
+                },
+                onRemove: _sets.length > 1 ? () => _removeSet(index) : null,
+              );
+            }).toList(),
+          ],
+        ),
       ),
     );
   }
@@ -979,12 +875,14 @@ class _ExerciseCardState extends State<ExerciseCard> {
   }
 
   void _updateExercise() {
-    final exercise = Exercise(
-      name: _nameController.text,
-      sets: _sets,
-      memo: _memoController.text.isEmpty ? null : _memoController.text,
-    );
-    widget.onChanged(exercise);
+    if (_nameController.text.trim().isNotEmpty) {
+      final exercise = Exercise(
+        name: _nameController.text.trim(),
+        sets: _sets,
+        memo: _memoController.text.isEmpty ? null : _memoController.text,
+      );
+      widget.onChanged(exercise);
+    }
   }
 
   void _addSet() {
@@ -1030,7 +928,7 @@ class _ExerciseCardState extends State<ExerciseCard> {
           TextFormField(
             controller: _nameController,
             decoration: InputDecoration(
-              labelText: '種目名',
+              labelText: '種目名 *',
               labelStyle: const TextStyle(
                 color: Color(0xFF8B4513),
                 fontFamily: 'serif',
@@ -1055,8 +953,14 @@ class _ExerciseCardState extends State<ExerciseCard> {
               fontFamily: 'serif',
               color: Color(0xFF5D4037),
             ),
+            textInputAction: TextInputAction.done,
             onFieldSubmitted: (_) => _updateExercise(),
-            onEditingComplete: _updateExercise,
+            validator: (value) {
+              if (value == null || value.trim().isEmpty) {
+                return '種目名を入力してください';
+              }
+              return null;
+            },
           ),
           const SizedBox(height: 16),
           Row(
@@ -1123,7 +1027,8 @@ class _ExerciseCardState extends State<ExerciseCard> {
               color: Color(0xFF5D4037),
             ),
             maxLines: 2,
-            onChanged: (_) => _updateExercise(),
+            textInputAction: TextInputAction.done,
+            onFieldSubmitted: (_) => _updateExercise(),
           ),
         ],
       ),
@@ -1131,7 +1036,7 @@ class _ExerciseCardState extends State<ExerciseCard> {
   }
 }
 
-class SetRow extends StatelessWidget {
+class SetRow extends StatefulWidget {
   final int setNumber;
   final TrainingSet set;
   final Function(TrainingSet) onChanged;
@@ -1146,6 +1051,20 @@ class SetRow extends StatelessWidget {
   }) : super(key: key);
 
   @override
+  State<SetRow> createState() => _SetRowState();
+}
+
+class _SetRowState extends State<SetRow> {
+  bool _isEditing = false;
+
+  @override
+  void initState() {
+    super.initState();
+    // Start in edit mode if both weight and reps are 0
+    _isEditing = widget.set.weight == 0 && widget.set.reps == 0;
+  }
+
+  @override
   Widget build(BuildContext context) {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 4),
@@ -1154,7 +1073,7 @@ class SetRow extends StatelessWidget {
           SizedBox(
             width: 40,
             child: Text(
-              '$setNumber',
+              '${widget.setNumber}',
               style: const TextStyle(
                 fontWeight: FontWeight.bold,
                 fontFamily: 'serif',
@@ -1162,84 +1081,123 @@ class SetRow extends StatelessWidget {
               ),
             ),
           ),
-          Expanded(
-            child: TextFormField(
-              initialValue: set.weight == 0 ? '' : set.weight.toString(),
-              decoration: InputDecoration(
-                labelText: 'kg',
-                labelStyle: const TextStyle(
-                  color: Color(0xFF8B4513),
-                  fontFamily: 'serif',
-                ),
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(6),
-                  borderSide: const BorderSide(
-                    color: Color(0xFFD7CCC8),
-                  ),
-                ),
-                focusedBorder: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(6),
-                  borderSide: const BorderSide(
+          if (_isEditing) ...[
+            Expanded(
+              child: TextFormField(
+                initialValue: widget.set.weight == 0 ? '' : widget.set.weight.toString(),
+                decoration: InputDecoration(
+                  labelText: 'kg',
+                  labelStyle: const TextStyle(
                     color: Color(0xFF8B4513),
-                    width: 2,
+                    fontFamily: 'serif',
                   ),
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(6),
+                    borderSide: const BorderSide(
+                      color: Color(0xFFD7CCC8),
+                    ),
+                  ),
+                  focusedBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(6),
+                    borderSide: const BorderSide(
+                      color: Color(0xFF8B4513),
+                      width: 2,
+                    ),
+                  ),
+                  contentPadding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+                  fillColor: Colors.white,
+                  filled: true,
                 ),
-                contentPadding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
-                fillColor: Colors.white,
-                filled: true,
-              ),
-              style: const TextStyle(
-                fontFamily: 'serif',
-                color: Color(0xFF5D4037),
-              ),
-              keyboardType: const TextInputType.numberWithOptions(decimal: true),
-              onChanged: (value) {
-                final weight = double.tryParse(value) ?? 0;
-                onChanged(TrainingSet(weight: weight, reps: set.reps));
-              },
-            ),
-          ),
-          const SizedBox(width: 8),
-          Expanded(
-            child: TextFormField(
-              initialValue: set.reps == 0 ? '' : set.reps.toString(),
-              decoration: InputDecoration(
-                labelText: '回',
-                labelStyle: const TextStyle(
-                  color: Color(0xFF8B4513),
+                style: const TextStyle(
                   fontFamily: 'serif',
+                  color: Color(0xFF5D4037),
                 ),
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(6),
-                  borderSide: const BorderSide(
-                    color: Color(0xFFD7CCC8),
-                  ),
-                ),
-                focusedBorder: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(6),
-                  borderSide: const BorderSide(
-                    color: Color(0xFF8B4513),
-                    width: 2,
-                  ),
-                ),
-                contentPadding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
-                fillColor: Colors.white,
-                filled: true,
+                keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                onChanged: (value) {
+                  final weight = double.tryParse(value) ?? 0;
+                  widget.onChanged(TrainingSet(weight: weight, reps: widget.set.reps));
+                },
               ),
-              style: const TextStyle(
-                fontFamily: 'serif',
-                color: Color(0xFF5D4037),
-              ),
-              keyboardType: TextInputType.number,
-              onChanged: (value) {
-                final reps = int.tryParse(value) ?? 0;
-                onChanged(TrainingSet(weight: set.weight, reps: reps));
-              },
             ),
-          ),
-          if (onRemove != null)
+            const SizedBox(width: 8),
+            Expanded(
+              child: TextFormField(
+                initialValue: widget.set.reps == 0 ? '' : widget.set.reps.toString(),
+                decoration: InputDecoration(
+                  labelText: '回',
+                  labelStyle: const TextStyle(
+                    color: Color(0xFF8B4513),
+                    fontFamily: 'serif',
+                  ),
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(6),
+                    borderSide: const BorderSide(
+                      color: Color(0xFFD7CCC8),
+                    ),
+                  ),
+                  focusedBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(6),
+                    borderSide: const BorderSide(
+                      color: Color(0xFF8B4513),
+                      width: 2,
+                    ),
+                  ),
+                  contentPadding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+                  fillColor: Colors.white,
+                  filled: true,
+                ),
+                style: const TextStyle(
+                  fontFamily: 'serif',
+                  color: Color(0xFF5D4037),
+                ),
+                keyboardType: TextInputType.number,
+                onChanged: (value) {
+                  final reps = int.tryParse(value) ?? 0;
+                  widget.onChanged(TrainingSet(weight: widget.set.weight, reps: reps));
+                },
+              ),
+            ),
+            const SizedBox(width: 8),
             IconButton(
-              onPressed: onRemove,
+              icon: const Icon(Icons.check, color: Colors.green),
+              onPressed: () => setState(() => _isEditing = false),
+            ),
+          ] else ...[
+            Expanded(
+              child: GestureDetector(
+                onTap: () => setState(() => _isEditing = true),
+                child: Container(
+                  padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 8),
+                  decoration: BoxDecoration(
+                    border: Border.all(color: const Color(0xFFE8E1D9)),
+                    borderRadius: BorderRadius.circular(6),
+                    color: Colors.grey.withOpacity(0.05),
+                  ),
+                  child: Text(
+                    widget.set.weight > 0 || widget.set.reps > 0 
+                        ? '${widget.set.weight}kg × ${widget.set.reps}回'
+                        : '重量 × 回数を入力',
+                    style: TextStyle(
+                      fontSize: 14,
+                      fontFamily: 'serif',
+                      color: widget.set.weight > 0 || widget.set.reps > 0 
+                          ? const Color(0xFF5D4037) 
+                          : Colors.grey,
+                    ),
+                  ),
+                ),
+              ),
+            ),
+            const SizedBox(width: 8),
+            IconButton(
+              icon: const Icon(Icons.edit, size: 16),
+              color: const Color(0xFF8B4513),
+              onPressed: () => setState(() => _isEditing = true),
+            ),
+          ],
+          if (widget.onRemove != null)
+            IconButton(
+              onPressed: widget.onRemove,
               icon: const Icon(Icons.remove_circle_outline),
               color: Colors.red,
             ),
