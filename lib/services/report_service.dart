@@ -25,14 +25,14 @@ class ReportService {
           );
         }
 
-        // 最大重量を計算
+        // 最大重量を計算（重量が同じ場合はより多くの回数を優先）
         for (final set in exercise.sets) {
-          if (set.weight > exerciseMap[exerciseName]!.maxWeight) {
+          if (set.weight > exerciseMap[exerciseName]!.maxWeight || 
+              (set.weight == exerciseMap[exerciseName]!.maxWeight && 
+               set.reps > exerciseMap[exerciseName]!.maxWeightCount)) {
             exerciseMap[exerciseName]!.maxWeight = set.weight;
             exerciseMap[exerciseName]!.achievedDate = note.date;
-            exerciseMap[exerciseName]!.maxWeightCount = 1; // 新しい最大重量なのでカウントリセット
-          } else if (set.weight == exerciseMap[exerciseName]!.maxWeight && set.weight > 0) {
-            exerciseMap[exerciseName]!.maxWeightCount++; // 同じ最大重量なのでカウント増加
+            exerciseMap[exerciseName]!.maxWeightCount = set.reps; // そのセットでの回数
           }
         }
       }
