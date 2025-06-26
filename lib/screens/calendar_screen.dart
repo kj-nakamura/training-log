@@ -65,26 +65,6 @@ class _CalendarScreenState extends State<CalendarScreen> {
         backgroundColor: const Color(0xFF8B4513),
         foregroundColor: Colors.white,
         elevation: 2,
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.add),
-            onPressed: () async {
-              final selectedDate = _selectedDay ?? DateTime.now();
-              final existingNote = await _storageService.getNoteForDate(selectedDate);
-              
-              await Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (context) => NoteCreationScreen(
-                    existingNote: existingNote,
-                    selectedDate: selectedDate,
-                  ),
-                ),
-              );
-              _loadNotes(); // Refresh notes after returning
-            },
-          ),
-        ],
       ),
       backgroundColor: const Color(0xFFFAF6F0),
       body: Column(
@@ -138,14 +118,26 @@ class _CalendarScreenState extends State<CalendarScreen> {
                   color: Colors.white,
                 ),
               ),
-              onDaySelected: (selectedDay, focusedDay) {
-                if (!isSameDay(_selectedDay, selectedDay)) {
-                  setState(() {
-                    _selectedDay = selectedDay;
-                    _focusedDay = focusedDay;
-                  });
-                  _selectedEvents.value = _getEventsForDay(selectedDay);
-                }
+              onDaySelected: (selectedDay, focusedDay) async {
+                setState(() {
+                  _selectedDay = selectedDay;
+                  _focusedDay = focusedDay;
+                });
+                _selectedEvents.value = _getEventsForDay(selectedDay);
+                
+                // Navigate directly to edit screen for selected date
+                final existingNote = await _storageService.getNoteForDate(selectedDay);
+                
+                Navigator.pop(context);
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => NoteCreationScreen(
+                      existingNote: existingNote,
+                      selectedDate: selectedDay,
+                    ),
+                  ),
+                );
               },
               onFormatChanged: (format) {
                 if (_calendarFormat != format) {
@@ -160,159 +152,6 @@ class _CalendarScreenState extends State<CalendarScreen> {
               selectedDayPredicate: (day) {
                 return isSameDay(_selectedDay, day);
               },
-            ),
-          ),
-          const SizedBox(height: 8.0),
-          Expanded(
-            child: Container(
-              padding: const EdgeInsets.all(16.0),
-              child: ValueListenableBuilder<List<TrainingNote>>(
-                valueListenable: _selectedEvents,
-                builder: (context, value, _) {
-                  if (value.isEmpty) {
-                    return Center(
-                      child: Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          Icon(
-                            Icons.event_note,
-                            size: 64,
-                            color: Colors.grey[400],
-                          ),
-                          const SizedBox(height: 16),
-                          Text(
-                            _selectedDay != null
-                                ? '${DateFormat('M月d日').format(_selectedDay!)}のトレーニング記録はありません'
-                                : 'トレーニング記録はありません',
-                            style: TextStyle(
-                              fontSize: 16,
-                              color: Colors.grey[600],
-                              fontFamily: 'serif',
-                            ),
-                          ),
-                          const SizedBox(height: 24),
-                          ElevatedButton.icon(
-                            onPressed: () async {
-                              final selectedDate = _selectedDay ?? DateTime.now();
-                              final existingNote = await _storageService.getNoteForDate(selectedDate);
-                              
-                              await Navigator.push(
-                                context,
-                                MaterialPageRoute(
-                                  builder: (context) => NoteCreationScreen(
-                                    existingNote: existingNote,
-                                    selectedDate: selectedDate,
-                                  ),
-                                ),
-                              );
-                              _loadNotes();
-                            },
-                            icon: const Icon(Icons.add),
-                            label: const Text('新しいノートを作成'),
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: const Color(0xFF8B4513),
-                              foregroundColor: Colors.white,
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 24,
-                                vertical: 12,
-                              ),
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(8),
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
-                    );
-                  }
-                  return ListView.builder(
-                    itemCount: value.length,
-                    itemBuilder: (context, index) {
-                      final note = value[index];
-                      return Container(
-                        margin: const EdgeInsets.only(bottom: 12),
-                        decoration: BoxDecoration(
-                          color: Colors.white.withOpacity(0.9),
-                          borderRadius: BorderRadius.circular(12),
-                          boxShadow: [
-                            BoxShadow(
-                              color: Colors.black.withOpacity(0.1),
-                              blurRadius: 8,
-                              offset: const Offset(0, 2),
-                            ),
-                          ],
-                          border: Border.all(
-                            color: const Color(0xFFE8E1D9),
-                            width: 1,
-                          ),
-                        ),
-                        child: ListTile(
-                          contentPadding: const EdgeInsets.all(16),
-                          leading: Container(
-                            width: 50,
-                            height: 50,
-                            decoration: const BoxDecoration(
-                              color: Color(0xFF8B4513),
-                              shape: BoxShape.circle,
-                            ),
-                            child: const Icon(
-                              Icons.fitness_center,
-                              color: Colors.white,
-                              size: 24,
-                            ),
-                          ),
-                          title: Text(
-                            DateFormat('HH:mm').format(note.date),
-                            style: const TextStyle(
-                              fontWeight: FontWeight.bold,
-                              fontFamily: 'serif',
-                              color: Color(0xFF5D4037),
-                            ),
-                          ),
-                          subtitle: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              const SizedBox(height: 4),
-                              Text(
-                                note.bodyWeight != null ? '体重: ${note.bodyWeight}kg' : '体重: 記録なし',
-                                style: const TextStyle(
-                                  fontFamily: 'serif',
-                                  color: Color(0xFF8B4513),
-                                ),
-                              ),
-                              const SizedBox(height: 4),
-                              Text(
-                                '${note.exercises.where((e) => e.name.isNotEmpty).length}種目',
-                                style: const TextStyle(
-                                  fontFamily: 'serif',
-                                  color: Color(0xFF8B4513),
-                                ),
-                              ),
-                            ],
-                          ),
-                          trailing: const Icon(
-                            Icons.arrow_forward_ios,
-                            color: Color(0xFF8B4513),
-                            size: 16,
-                          ),
-                          onTap: () {
-                            final noteDate = DateTime(note.date.year, note.date.month, note.date.day);
-                            Navigator.push(
-                              context,
-                              MaterialPageRoute(
-                                builder: (context) => NoteCreationScreen(
-                                  existingNote: note,
-                                  selectedDate: noteDate,
-                                ),
-                              ),
-                            );
-                          },
-                        ),
-                      );
-                    },
-                  );
-                },
-              ),
             ),
           ),
         ],

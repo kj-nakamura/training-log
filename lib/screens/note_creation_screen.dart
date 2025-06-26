@@ -483,31 +483,19 @@ class _NoteCreationScreenState extends State<NoteCreationScreen> with TickerProv
                           : Row(
                               children: [
                                 Expanded(
-                                  child: GestureDetector(
-                                    onTap: () => setState(() => _isEditingBodyWeight = true),
-                                    child: Container(
-                                      padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 8),
-                                      decoration: BoxDecoration(
-                                        border: Border.all(color: const Color(0xFFE8E1D9)),
-                                        borderRadius: BorderRadius.circular(8),
-                                        color: Colors.grey.withOpacity(0.05),
-                                      ),
-                                      child: Text(
-                                        _bodyWeightController.text.isNotEmpty 
-                                            ? '体重: ${_bodyWeightController.text}kg'
-                                            : '体重を入力',
-                                        style: TextStyle(
-                                          fontSize: 16,
-                                          fontFamily: 'serif',
-                                          color: _bodyWeightController.text.isNotEmpty 
-                                              ? const Color(0xFF5D4037) 
-                                              : Colors.grey,
-                                        ),
-                                      ),
+                                  child: Text(
+                                    _bodyWeightController.text.isNotEmpty 
+                                        ? '体重: ${_bodyWeightController.text}kg'
+                                        : '体重: 記録なし',
+                                    style: TextStyle(
+                                      fontSize: 16,
+                                      fontFamily: 'serif',
+                                      color: _bodyWeightController.text.isNotEmpty 
+                                          ? const Color(0xFF5D4037) 
+                                          : Colors.grey,
                                     ),
                                   ),
                                 ),
-                                const SizedBox(width: 8),
                                 IconButton(
                                   icon: const Icon(Icons.edit, size: 18),
                                   color: const Color(0xFF8B4513),
@@ -738,24 +726,13 @@ class _EditModeExerciseCardState extends State<EditModeExerciseCard> {
                           return null;
                         },
                       )
-                    : GestureDetector(
-                        onTap: () => setState(() => _isEditing = true),
-                        child: Container(
-                          width: double.infinity,
-                          padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 12),
-                          decoration: BoxDecoration(
-                            border: Border.all(color: const Color(0xFFE8E1D9)),
-                            borderRadius: BorderRadius.circular(8),
-                            color: Colors.grey.withOpacity(0.05),
-                          ),
-                          child: Text(
-                            _nameController.text.isNotEmpty ? _nameController.text : '種目名を入力',
-                            style: TextStyle(
-                              fontSize: 16,
-                              fontFamily: 'serif',
-                              color: _nameController.text.isNotEmpty ? const Color(0xFF5D4037) : Colors.grey,
-                            ),
-                          ),
+                    : Text(
+                        _nameController.text.isNotEmpty ? _nameController.text : '種目名未設定',
+                        style: TextStyle(
+                          fontSize: 18,
+                          fontWeight: FontWeight.bold,
+                          fontFamily: 'serif',
+                          color: _nameController.text.isNotEmpty ? const Color(0xFF5D4037) : Colors.grey,
                         ),
                       ),
                 ),
@@ -1056,6 +1033,7 @@ class SetRow extends StatefulWidget {
 
 class _SetRowState extends State<SetRow> {
   bool _isEditing = false;
+  final _formKey = GlobalKey<FormState>();
 
   @override
   void initState() {
@@ -1083,112 +1061,139 @@ class _SetRowState extends State<SetRow> {
           ),
           if (_isEditing) ...[
             Expanded(
-              child: TextFormField(
-                initialValue: widget.set.weight == 0 ? '' : widget.set.weight.toString(),
-                decoration: InputDecoration(
-                  labelText: 'kg',
-                  labelStyle: const TextStyle(
-                    color: Color(0xFF8B4513),
-                    fontFamily: 'serif',
-                  ),
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(6),
-                    borderSide: const BorderSide(
-                      color: Color(0xFFD7CCC8),
+              child: Form(
+                key: _formKey,
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: TextFormField(
+                        initialValue: widget.set.weight == 0 ? '' : widget.set.weight.toString(),
+                        decoration: InputDecoration(
+                          labelText: 'kg *',
+                          labelStyle: const TextStyle(
+                            color: Color(0xFF8B4513),
+                            fontFamily: 'serif',
+                          ),
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(6),
+                            borderSide: const BorderSide(
+                              color: Color(0xFFD7CCC8),
+                            ),
+                          ),
+                          focusedBorder: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(6),
+                            borderSide: const BorderSide(
+                              color: Color(0xFF8B4513),
+                              width: 2,
+                            ),
+                          ),
+                          contentPadding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+                          fillColor: Colors.white,
+                          filled: true,
+                        ),
+                        style: const TextStyle(
+                          fontFamily: 'serif',
+                          color: Color(0xFF5D4037),
+                        ),
+                        keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                        validator: (value) {
+                          if (value == null || value.trim().isEmpty) {
+                            return '重量を入力';
+                          }
+                          final weight = double.tryParse(value);
+                          if (weight == null) {
+                            return '正しい数値を入力';
+                          }
+                          if (weight <= 0) {
+                            return '0より大きい値を入力';
+                          }
+                          return null;
+                        },
+                        onChanged: (value) {
+                          final weight = double.tryParse(value) ?? 0;
+                          widget.onChanged(TrainingSet(weight: weight, reps: widget.set.reps));
+                        },
+                      ),
                     ),
-                  ),
-                  focusedBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(6),
-                    borderSide: const BorderSide(
-                      color: Color(0xFF8B4513),
-                      width: 2,
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: TextFormField(
+                        initialValue: widget.set.reps == 0 ? '' : widget.set.reps.toString(),
+                        decoration: InputDecoration(
+                          labelText: '回 *',
+                          labelStyle: const TextStyle(
+                            color: Color(0xFF8B4513),
+                            fontFamily: 'serif',
+                          ),
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(6),
+                            borderSide: const BorderSide(
+                              color: Color(0xFFD7CCC8),
+                            ),
+                          ),
+                          focusedBorder: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(6),
+                            borderSide: const BorderSide(
+                              color: Color(0xFF8B4513),
+                              width: 2,
+                            ),
+                          ),
+                          contentPadding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+                          fillColor: Colors.white,
+                          filled: true,
+                        ),
+                        style: const TextStyle(
+                          fontFamily: 'serif',
+                          color: Color(0xFF5D4037),
+                        ),
+                        keyboardType: TextInputType.number,
+                        validator: (value) {
+                          if (value == null || value.trim().isEmpty) {
+                            return '回数を入力';
+                          }
+                          final reps = int.tryParse(value);
+                          if (reps == null) {
+                            return '正しい数値を入力';
+                          }
+                          if (reps <= 0) {
+                            return '0より大きい値を入力';
+                          }
+                          return null;
+                        },
+                        onChanged: (value) {
+                          final reps = int.tryParse(value) ?? 0;
+                          widget.onChanged(TrainingSet(weight: widget.set.weight, reps: reps));
+                        },
+                      ),
                     ),
-                  ),
-                  contentPadding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
-                  fillColor: Colors.white,
-                  filled: true,
+                  ],
                 ),
-                style: const TextStyle(
-                  fontFamily: 'serif',
-                  color: Color(0xFF5D4037),
-                ),
-                keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                onChanged: (value) {
-                  final weight = double.tryParse(value) ?? 0;
-                  widget.onChanged(TrainingSet(weight: weight, reps: widget.set.reps));
-                },
-              ),
-            ),
-            const SizedBox(width: 8),
-            Expanded(
-              child: TextFormField(
-                initialValue: widget.set.reps == 0 ? '' : widget.set.reps.toString(),
-                decoration: InputDecoration(
-                  labelText: '回',
-                  labelStyle: const TextStyle(
-                    color: Color(0xFF8B4513),
-                    fontFamily: 'serif',
-                  ),
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(6),
-                    borderSide: const BorderSide(
-                      color: Color(0xFFD7CCC8),
-                    ),
-                  ),
-                  focusedBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(6),
-                    borderSide: const BorderSide(
-                      color: Color(0xFF8B4513),
-                      width: 2,
-                    ),
-                  ),
-                  contentPadding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
-                  fillColor: Colors.white,
-                  filled: true,
-                ),
-                style: const TextStyle(
-                  fontFamily: 'serif',
-                  color: Color(0xFF5D4037),
-                ),
-                keyboardType: TextInputType.number,
-                onChanged: (value) {
-                  final reps = int.tryParse(value) ?? 0;
-                  widget.onChanged(TrainingSet(weight: widget.set.weight, reps: reps));
-                },
               ),
             ),
             const SizedBox(width: 8),
             IconButton(
               icon: const Icon(Icons.check, color: Colors.green),
-              onPressed: () => setState(() => _isEditing = false),
+              onPressed: () {
+                if (_formKey.currentState!.validate()) {
+                  setState(() => _isEditing = false);
+                }
+              },
             ),
           ] else ...[
             Expanded(
-              child: GestureDetector(
-                onTap: () => setState(() => _isEditing = true),
-                child: Container(
-                  padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 8),
-                  decoration: BoxDecoration(
-                    border: Border.all(color: const Color(0xFFE8E1D9)),
-                    borderRadius: BorderRadius.circular(6),
-                    color: Colors.grey.withOpacity(0.05),
-                  ),
-                  child: Text(
-                    widget.set.weight > 0 || widget.set.reps > 0 
-                        ? '${widget.set.weight}kg × ${widget.set.reps}回'
-                        : '重量 × 回数を入力',
-                    style: TextStyle(
-                      fontSize: 14,
-                      fontFamily: 'serif',
-                      color: widget.set.weight > 0 || widget.set.reps > 0 
-                          ? const Color(0xFF5D4037) 
-                          : Colors.grey,
-                    ),
-                  ),
+              child: Text(
+                widget.set.weight > 0 || widget.set.reps > 0 
+                    ? '${widget.set.weight}kg × ${widget.set.reps}回'
+                    : '未入力',
+                style: TextStyle(
+                  fontSize: 14,
+                  fontFamily: 'serif',
+                  color: widget.set.weight > 0 || widget.set.reps > 0 
+                      ? const Color(0xFF5D4037) 
+                      : Colors.grey,
                 ),
               ),
             ),
-            const SizedBox(width: 8),
             IconButton(
               icon: const Icon(Icons.edit, size: 16),
               color: const Color(0xFF8B4513),
