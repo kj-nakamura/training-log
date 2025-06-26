@@ -6,6 +6,7 @@ import '../models/training_set.dart';
 import '../services/storage_service.dart';
 import '../widgets/progress_chart.dart';
 import 'calendar_screen.dart';
+import 'report_screen.dart';
 
 class NoteCreationScreen extends StatefulWidget {
   final TrainingNote? existingNote;
@@ -388,22 +389,11 @@ class _NoteCreationScreenState extends State<NoteCreationScreen> with TickerProv
     }
   }
 
-  void _showProgressChart() {
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('体重グラフ'),
-        content: const SizedBox(
-          width: double.maxFinite,
-          height: 300,
-          child: ProgressChart(),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(),
-            child: const Text('閉じる'),
-          ),
-        ],
+  void _showReport() {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => const ReportScreen(),
       ),
     );
   }
@@ -417,8 +407,8 @@ class _NoteCreationScreenState extends State<NoteCreationScreen> with TickerProv
         foregroundColor: Colors.white,
         elevation: 2,
         leading: IconButton(
-          icon: const Icon(Icons.bar_chart),
-          onPressed: _showProgressChart,
+          icon: const Icon(Icons.analytics),
+          onPressed: _showReport,
         ),
         actions: [
           IconButton(
