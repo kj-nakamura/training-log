@@ -849,6 +849,10 @@ class _EditModeExerciseCardState extends State<EditModeExerciseCard> {
                   });
                 },
                 onRemove: _sets.length > 1 ? () => _removeSet(index) : null,
+                onSave: () {
+                  _updateExercise();
+                  widget.onSave();
+                },
               );
             }).toList(),
           ],
@@ -858,217 +862,13 @@ class _EditModeExerciseCardState extends State<EditModeExerciseCard> {
   }
 }
 
-class ExerciseCard extends StatefulWidget {
-  final Exercise exercise;
-  final Function(Exercise) onChanged;
-
-  const ExerciseCard({
-    Key? key,
-    required this.exercise,
-    required this.onChanged,
-  }) : super(key: key);
-
-  @override
-  State<ExerciseCard> createState() => _ExerciseCardState();
-}
-
-class _ExerciseCardState extends State<ExerciseCard> {
-  late final TextEditingController _nameController;
-  late final TextEditingController _memoController;
-  late List<TrainingSet> _sets;
-
-  @override
-  void initState() {
-    super.initState();
-    _nameController = TextEditingController(text: widget.exercise.name);
-    _memoController = TextEditingController(text: widget.exercise.memo ?? '');
-    _sets = List.from(widget.exercise.sets);
-  }
-
-  @override
-  void didUpdateWidget(ExerciseCard oldWidget) {
-    super.didUpdateWidget(oldWidget);
-    // Update controllers when exercise data changes (e.g., when swiping dates)
-    // Always update to ensure data consistency when parent updates
-    _nameController.text = widget.exercise.name;
-    _memoController.text = widget.exercise.memo ?? '';
-    _sets = List.from(widget.exercise.sets);
-  }
-
-  @override
-  void dispose() {
-    _nameController.dispose();
-    _memoController.dispose();
-    super.dispose();
-  }
-
-  void _updateExercise() {
-    if (_nameController.text.trim().isNotEmpty) {
-      final exercise = Exercise(
-        name: _nameController.text.trim(),
-        sets: _sets,
-        memo: _memoController.text.isEmpty ? null : _memoController.text,
-      );
-      widget.onChanged(exercise);
-    }
-  }
-
-  void _addSet() {
-    if (_sets.length < 5) {
-      setState(() {
-        _sets.add(TrainingSet(weight: 0, reps: 0));
-        _updateExercise();
-      });
-    }
-  }
-
-  void _removeSet(int index) {
-    if (_sets.length > 1) {
-      setState(() {
-        _sets.removeAt(index);
-        _updateExercise();
-      });
-    }
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      margin: const EdgeInsets.only(bottom: 16),
-      padding: const EdgeInsets.all(20.0),
-      decoration: BoxDecoration(
-        color: Colors.white.withOpacity(0.9),
-        borderRadius: BorderRadius.circular(12),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.1),
-            blurRadius: 8,
-            offset: const Offset(0, 2),
-          ),
-        ],
-        border: Border.all(
-          color: const Color(0xFFE8E1D9),
-          width: 1,
-        ),
-      ),
-      child: Column(
-        children: [
-          TextFormField(
-            controller: _nameController,
-            decoration: InputDecoration(
-              labelText: '種目名 *',
-              labelStyle: const TextStyle(
-                color: Color(0xFF8B4513),
-                fontFamily: 'serif',
-              ),
-              border: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(8),
-                borderSide: const BorderSide(
-                  color: Color(0xFFD7CCC8),
-                ),
-              ),
-              focusedBorder: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(8),
-                borderSide: const BorderSide(
-                  color: Color(0xFF8B4513),
-                  width: 2,
-                ),
-              ),
-              fillColor: Colors.white,
-              filled: true,
-            ),
-            style: const TextStyle(
-              fontFamily: 'serif',
-              color: Color(0xFF5D4037),
-            ),
-            textInputAction: TextInputAction.done,
-            onFieldSubmitted: (_) => _updateExercise(),
-            validator: (value) {
-              if (value == null || value.trim().isEmpty) {
-                return '種目名を入力してください';
-              }
-              return null;
-            },
-          ),
-          const SizedBox(height: 16),
-          Row(
-            children: [
-              const Text(
-                'セット',
-                style: TextStyle(
-                  fontWeight: FontWeight.bold,
-                  fontFamily: 'serif',
-                  color: Color(0xFF5D4037),
-                ),
-              ),
-              const Spacer(),
-              if (_sets.length < 5)
-                IconButton(
-                  onPressed: _addSet,
-                  icon: const Icon(Icons.add),
-                  color: const Color(0xFF8B4513),
-                ),
-            ],
-          ),
-          ..._sets.asMap().entries.map((entry) {
-            final index = entry.key;
-            final set = entry.value;
-            return SetRow(
-              setNumber: index + 1,
-              set: set,
-              onChanged: (newSet) {
-                setState(() {
-                  _sets[index] = newSet;
-                  _updateExercise();
-                });
-              },
-              onRemove: _sets.length > 1 ? () => _removeSet(index) : null,
-            );
-          }).toList(),
-          const SizedBox(height: 16),
-          TextFormField(
-            controller: _memoController,
-            decoration: InputDecoration(
-              labelText: 'メモ',
-              labelStyle: const TextStyle(
-                color: Color(0xFF8B4513),
-                fontFamily: 'serif',
-              ),
-              border: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(8),
-                borderSide: const BorderSide(
-                  color: Color(0xFFD7CCC8),
-                ),
-              ),
-              focusedBorder: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(8),
-                borderSide: const BorderSide(
-                  color: Color(0xFF8B4513),
-                  width: 2,
-                ),
-              ),
-              fillColor: Colors.white,
-              filled: true,
-            ),
-            style: const TextStyle(
-              fontFamily: 'serif',
-              color: Color(0xFF5D4037),
-            ),
-            maxLines: 2,
-            textInputAction: TextInputAction.done,
-            onFieldSubmitted: (_) => _updateExercise(),
-          ),
-        ],
-      ),
-    );
-  }
-}
 
 class SetRow extends StatefulWidget {
   final int setNumber;
   final TrainingSet set;
   final Function(TrainingSet) onChanged;
   final VoidCallback? onRemove;
+  final VoidCallback onSave;
 
   const SetRow({
     Key? key,
@@ -1076,6 +876,7 @@ class SetRow extends StatefulWidget {
     required this.set,
     required this.onChanged,
     this.onRemove,
+    required this.onSave,
   }) : super(key: key);
 
   @override
@@ -1227,6 +1028,7 @@ class _SetRowState extends State<SetRow> {
               onPressed: () {
                 if (_formKey.currentState!.validate()) {
                   setState(() => _isEditing = false);
+                  widget.onSave();
                 }
               },
             ),
