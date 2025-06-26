@@ -14,6 +14,7 @@ class ReportScreen extends StatefulWidget {
 
 class _ReportScreenState extends State<ReportScreen> {
   final ReportService _reportService = ReportService();
+  final StorageService _storageService = StorageService();
   List<ExerciseReport> _reports = [];
   bool _isLoading = true;
 
@@ -41,6 +42,30 @@ class _ReportScreenState extends State<ReportScreen> {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('レポートの読み込みに失敗しました: $e')),
+        );
+      }
+    }
+  }
+
+  Future<void> _navigateToMaxWeightDate(ExerciseReport report) async {
+    try {
+      final existingNote = await _storageService.getNoteForDate(report.achievedDate);
+      
+      if (mounted) {
+        await Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (context) => NoteCreationScreen(
+              existingNote: existingNote,
+              selectedDate: report.achievedDate,
+            ),
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('画面の遷移に失敗しました: $e')),
         );
       }
     }
@@ -158,26 +183,28 @@ class _ReportScreenState extends State<ReportScreen> {
   }
 
   Widget _buildReportCard(ExerciseReport report) {
-    return Container(
-      margin: const EdgeInsets.only(bottom: 12),
-      decoration: BoxDecoration(
-        color: Colors.white.withOpacity(0.9),
-        borderRadius: BorderRadius.circular(12),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.1),
-            blurRadius: 8,
-            offset: const Offset(0, 2),
+    return GestureDetector(
+      onTap: () => _navigateToMaxWeightDate(report),
+      child: Container(
+        margin: const EdgeInsets.only(bottom: 12),
+        decoration: BoxDecoration(
+          color: Colors.white.withOpacity(0.9),
+          borderRadius: BorderRadius.circular(12),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.1),
+              blurRadius: 8,
+              offset: const Offset(0, 2),
+            ),
+          ],
+          border: Border.all(
+            color: const Color(0xFFE8E1D9),
+            width: 1,
           ),
-        ],
-        border: Border.all(
-          color: const Color(0xFFE8E1D9),
-          width: 1,
         ),
-      ),
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Row(
+        child: Padding(
+          padding: const EdgeInsets.all(16),
+          child: Row(
           children: [
             // 種目アイコン
             Container(
@@ -271,9 +298,16 @@ class _ReportScreenState extends State<ReportScreen> {
                 ],
               ),
             ),
+            // 矢印アイコン
+            const Icon(
+              Icons.arrow_forward_ios,
+              color: Color(0xFF8B4513),
+              size: 16,
+            ),
           ],
         ),
       ),
+    ),
     );
   }
 }
