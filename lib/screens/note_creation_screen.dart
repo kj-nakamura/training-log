@@ -3,6 +3,7 @@ import 'package:intl/intl.dart';
 import '../models/training_note.dart';
 import '../models/exercise.dart';
 import '../models/training_set.dart';
+import '../models/max_exercise.dart';
 import '../services/storage_service.dart';
 import '../widgets/progress_chart.dart';
 import 'calendar_screen.dart';
@@ -663,6 +664,8 @@ class _EditModeExerciseCardState extends State<EditModeExerciseCard> {
   late List<TrainingSet> _sets;
   final _formKey = GlobalKey<FormState>();
   bool _isEditing = false;
+  List<String> _exerciseSuggestions = [];
+  bool _showSuggestions = false;
 
   @override
   void initState() {
@@ -692,6 +695,23 @@ class _EditModeExerciseCardState extends State<EditModeExerciseCard> {
       memo: null,
     );
     widget.onChanged(exercise);
+  }
+
+  Future<void> _searchExercises(String query) async {
+    final storageService = StorageService();
+    final suggestions = await storageService.searchMaxExercises(query);
+    setState(() {
+      _exerciseSuggestions = suggestions;
+      _showSuggestions = query.isNotEmpty && suggestions.isNotEmpty;
+    });
+  }
+
+  void _selectExercise(String exerciseName) {
+    _nameController.text = exerciseName;
+    setState(() {
+      _showSuggestions = false;
+    });
+    _updateExercise();
   }
 
   void _addSet() {
@@ -740,42 +760,90 @@ class _EditModeExerciseCardState extends State<EditModeExerciseCard> {
               children: [
                 Expanded(
                   child: _isEditing 
-                    ? TextFormField(
-                        controller: _nameController,
-                        decoration: InputDecoration(
-                          labelText: '種目名 *',
-                          labelStyle: const TextStyle(
-                            color: Color(0xFF8B4513),
-                            fontFamily: 'serif',
-                          ),
-                          border: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(8),
-                            borderSide: const BorderSide(
-                              color: Color(0xFFD7CCC8),
+                    ? Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          TextFormField(
+                            controller: _nameController,
+                            decoration: InputDecoration(
+                              labelText: '種目名 *',
+                              hintText: '登録種目から検索または手動入力',
+                              labelStyle: const TextStyle(
+                                color: Color(0xFF8B4513),
+                                fontFamily: 'serif',
+                              ),
+                              border: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(8),
+                                borderSide: const BorderSide(
+                                  color: Color(0xFFD7CCC8),
+                                ),
+                              ),
+                              focusedBorder: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(8),
+                                borderSide: const BorderSide(
+                                  color: Color(0xFF8B4513),
+                                  width: 2,
+                                ),
+                              ),
+                              fillColor: Colors.white,
+                              filled: true,
                             ),
-                          ),
-                          focusedBorder: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(8),
-                            borderSide: const BorderSide(
-                              color: Color(0xFF8B4513),
-                              width: 2,
+                            style: const TextStyle(
+                              fontFamily: 'serif',
+                              color: Color(0xFF5D4037),
                             ),
+                            textInputAction: TextInputAction.done,
+                            onChanged: (value) {
+                              _searchExercises(value);
+                            },
+                            onFieldSubmitted: (_) {
+                              setState(() => _showSuggestions = false);
+                              _updateExercise();
+                            },
+                            validator: (value) {
+                              if (value == null || value.trim().isEmpty) {
+                                return '種目名を入力してください';
+                              }
+                              return null;
+                            },
                           ),
-                          fillColor: Colors.white,
-                          filled: true,
-                        ),
-                        style: const TextStyle(
-                          fontFamily: 'serif',
-                          color: Color(0xFF5D4037),
-                        ),
-                        textInputAction: TextInputAction.done,
-                        onFieldSubmitted: (_) => _updateExercise(),
-                        validator: (value) {
-                          if (value == null || value.trim().isEmpty) {
-                            return '種目名を入力してください';
-                          }
-                          return null;
-                        },
+                          if (_showSuggestions) ...[
+                            const SizedBox(height: 4),
+                            Container(
+                              constraints: const BoxConstraints(maxHeight: 120),
+                              decoration: BoxDecoration(
+                                color: Colors.white,
+                                borderRadius: BorderRadius.circular(8),
+                                border: Border.all(color: const Color(0xFFD7CCC8)),
+                                boxShadow: [
+                                  BoxShadow(
+                                    color: Colors.black.withOpacity(0.1),
+                                    blurRadius: 4,
+                                    offset: const Offset(0, 2),
+                                  ),
+                                ],
+                              ),
+                              child: ListView.builder(
+                                shrinkWrap: true,
+                                itemCount: _exerciseSuggestions.length,
+                                itemBuilder: (context, index) {
+                                  final suggestion = _exerciseSuggestions[index];
+                                  return ListTile(
+                                    dense: true,
+                                    title: Text(
+                                      suggestion,
+                                      style: const TextStyle(
+                                        fontFamily: 'serif',
+                                        color: Color(0xFF5D4037),
+                                      ),
+                                    ),
+                                    onTap: () => _selectExercise(suggestion),
+                                  );
+                                },
+                              ),
+                            ),
+                          ],
+                        ],
                       )
                     : Text(
                         _nameController.text.isNotEmpty ? _nameController.text : '種目名未設定',
