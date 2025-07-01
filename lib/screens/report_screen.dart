@@ -4,6 +4,7 @@ import '../models/exercise_report.dart';
 import '../models/max_exercise.dart';
 import '../services/report_service.dart';
 import '../services/storage_service.dart';
+import '../widgets/weight_chart.dart';
 import 'note_creation_screen.dart';
 
 class ReportScreen extends StatefulWidget {
@@ -220,6 +221,7 @@ class _ReportScreenState extends State<ReportScreen> {
             )
           : Column(
               children: [
+                const WeightChart(),
                 if (_maxExercises.isNotEmpty) _buildMaxExercisesList(),
                 if (_reports.isNotEmpty) 
                   Expanded(child: _buildReportList())
