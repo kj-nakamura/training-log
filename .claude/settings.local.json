@@ -37,7 +37,8 @@
       "Bash(flutter create:*)",
       "Bash(flutter pub:*)",
       "Bash(flutter analyze:*)",
-      "Bash(flutter:*)"
+      "Bash(flutter:*)",
+      "Bash(keytool:*)"
     ],
     "deny": [
       "Bash(rm:*)"
