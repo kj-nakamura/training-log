@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import '../models/training_note.dart';
 import '../models/exercise.dart';
+import '../models/cardio_exercise.dart';
 import '../models/training_set.dart';
 import '../models/max_exercise.dart';
 import '../services/storage_service.dart';
@@ -26,6 +27,7 @@ class _NoteCreationScreenState extends State<NoteCreationScreen> with TickerProv
   
   late DateTime _selectedDate;
   List<Exercise> _exercises = [];
+  CardioExercise? _cardioExercise;
   late AnimationController _animationController;
   late Animation<double> _slideAnimation;
   bool _isInitialLoad = true;
@@ -61,6 +63,7 @@ class _NoteCreationScreenState extends State<NoteCreationScreen> with TickerProv
       // Load existing note data
       _bodyWeightController.text = existingNote.bodyWeight?.toString() ?? '';
       _exercises = List.from(existingNote.exercises);
+      _cardioExercise = existingNote.cardioExercise ?? CardioExercise(distanceInKm: 0, durationInMinutes: 0);
     } else {
       // Initialize with 1 empty exercise and clear body weight
       _bodyWeightController.clear();
@@ -70,6 +73,7 @@ class _NoteCreationScreenState extends State<NoteCreationScreen> with TickerProv
         sets: [TrainingSet(weight: 0, reps: 0)], // Start with 1 set
         memo: '',
       ));
+      _cardioExercise = CardioExercise(distanceInKm: 0, durationInMinutes: 0);
     }
     // Clear editing states
     _isEditingBodyWeight = _bodyWeightController.text.isEmpty;
@@ -113,6 +117,8 @@ class _NoteCreationScreenState extends State<NoteCreationScreen> with TickerProv
     });
   }
 
+  
+
   Future<void> _saveNote() async {
     if (_formKey.currentState!.validate()) {
       final existingNote = await _storageService.getNoteForDate(_selectedDate);
@@ -133,6 +139,7 @@ class _NoteCreationScreenState extends State<NoteCreationScreen> with TickerProv
         date: dateWithCurrentTime,
         bodyWeight: _bodyWeightController.text.isEmpty ? null : double.parse(_bodyWeightController.text),
         exercises: _exercises,
+        cardioExercise: _cardioExercise,
       );
 
       await _storageService.saveNote(note);
@@ -162,6 +169,7 @@ class _NoteCreationScreenState extends State<NoteCreationScreen> with TickerProv
           date: dateWithCurrentTime,
           bodyWeight: weight,
           exercises: existingNote?.exercises ?? _exercises,
+          cardioExercise: existingNote?.cardioExercise ?? _cardioExercise,
         );
         
         await _storageService.saveNote(note);
@@ -197,6 +205,7 @@ class _NoteCreationScreenState extends State<NoteCreationScreen> with TickerProv
       date: dateWithCurrentTime,
       bodyWeight: existingNote?.bodyWeight ?? (_bodyWeightController.text.isNotEmpty ? double.tryParse(_bodyWeightController.text) : null),
       exercises: _exercises,
+      cardioExercise: existingNote?.cardioExercise ?? _cardioExercise,
     );
     
     await _storageService.saveNote(note);
@@ -360,6 +369,49 @@ class _NoteCreationScreenState extends State<NoteCreationScreen> with TickerProv
           },
         ),
       ),
+    );
+  }
+
+  Widget _buildCardioSection() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Text(
+          '🏃 有酸素運動',
+          style: TextStyle(
+            fontSize: 20,
+            fontWeight: FontWeight.bold,
+            fontFamily: 'serif',
+            color: Color(0xFF5D4037),
+          ),
+        ),
+        const SizedBox(height: 16),
+        if (_cardioExercise != null)
+          CardioExerciseCard(
+            key: ValueKey('cardio_${_selectedDate.toIso8601String()}'),
+            cardioExercise: _cardioExercise!,
+            onChanged: (updatedCardio) {
+              setState(() {
+                _cardioExercise = updatedCardio;
+              });
+            },
+            onSave: _saveNote,
+          )
+        else
+          Container(
+            padding: const EdgeInsets.all(20),
+            child: const Text(
+              '有酸素運動は記録されていません',
+              style: TextStyle(
+                fontSize: 16,
+                fontFamily: 'serif',
+                color: Color(0xFF999999),
+                fontStyle: FontStyle.italic,
+              ),
+              textAlign: TextAlign.center,
+            ),
+          ),
+      ],
     );
   }
 
@@ -633,6 +685,8 @@ class _NoteCreationScreenState extends State<NoteCreationScreen> with TickerProv
                 ),
               ),
             ),
+          const SizedBox(height: 16),
+          _buildCardioSection(),
         ],
       ),
     );
@@ -1128,6 +1182,169 @@ class _SetRowState extends State<SetRow> {
               color: Colors.red,
             ),
         ],
+      ),
+    );
+  }
+}
+
+class CardioExerciseCard extends StatefulWidget {
+  final CardioExercise cardioExercise;
+  final Function(CardioExercise) onChanged;
+  final VoidCallback onSave;
+
+  const CardioExerciseCard({
+    Key? key,
+    required this.cardioExercise,
+    required this.onChanged,
+    required this.onSave,
+  }) : super(key: key);
+
+  @override
+  State<CardioExerciseCard> createState() => _CardioExerciseCardState();
+}
+
+class _CardioExerciseCardState extends State<CardioExerciseCard> {
+  late final TextEditingController _kmController;
+  late final TextEditingController _minutesController;
+  final _formKey = GlobalKey<FormState>();
+  bool _isEditing = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _kmController = TextEditingController(text: widget.cardioExercise.distanceInKm == 0 ? '' : widget.cardioExercise.distanceInKm.toString());
+    _minutesController = TextEditingController(text: widget.cardioExercise.durationInMinutes == 0 ? '' : widget.cardioExercise.durationInMinutes.toString());
+    _isEditing = widget.cardioExercise.distanceInKm == 0 && widget.cardioExercise.durationInMinutes == 0;
+  }
+
+  @override
+  void dispose() {
+    _kmController.dispose();
+    _minutesController.dispose();
+    super.dispose();
+  }
+
+  void _updateCardio() {
+    final km = double.tryParse(_kmController.text) ?? 0;
+    final minutes = int.tryParse(_minutesController.text) ?? 0;
+    widget.onChanged(CardioExercise(distanceInKm: km, durationInMinutes: minutes));
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 16),
+      padding: const EdgeInsets.all(20.0),
+      decoration: BoxDecoration(
+        color: Colors.white.withOpacity(0.9),
+        borderRadius: BorderRadius.circular(12),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.1),
+            blurRadius: 8,
+            offset: const Offset(0, 2),
+          ),
+        ],
+        border: Border.all(
+          color: const Color(0xFFE8E1D9),
+          width: 1,
+        ),
+      ),
+      child: Form(
+        key: _formKey,
+        child: Column(
+          children: [
+            Row(
+              children: [
+                Expanded(
+                  child: _isEditing
+                      ? Row(
+                          children: [
+                            Expanded(
+                              child: TextFormField(
+                                controller: _kmController,
+                                decoration: InputDecoration(
+                                  labelText: '距離 (km)',
+                                  labelStyle: const TextStyle(
+                                    color: Color(0xFF8B4513),
+                                    fontFamily: 'serif',
+                                  ),
+                                  border: OutlineInputBorder(
+                                    borderRadius: BorderRadius.circular(8),
+                                  ),
+                                  contentPadding: const EdgeInsets.symmetric(
+                                    horizontal: 8,
+                                    vertical: 8,
+                                  ),
+                                ),
+                                style: const TextStyle(
+                                  fontFamily: 'serif',
+                                  color: Color(0xFF5D4037),
+                                ),
+                                keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                                textInputAction: TextInputAction.next,
+                                onChanged: (_) => _updateCardio(),
+                              ),
+                            ),
+                            const SizedBox(width: 8),
+                            Expanded(
+                              child: TextFormField(
+                                controller: _minutesController,
+                                decoration: InputDecoration(
+                                  labelText: '時間 (分)',
+                                  labelStyle: const TextStyle(
+                                    color: Color(0xFF8B4513),
+                                    fontFamily: 'serif',
+                                  ),
+                                  border: OutlineInputBorder(
+                                    borderRadius: BorderRadius.circular(8),
+                                  ),
+                                  contentPadding: const EdgeInsets.symmetric(
+                                    horizontal: 8,
+                                    vertical: 8,
+                                  ),
+                                ),
+                                style: const TextStyle(
+                                  fontFamily: 'serif',
+                                  color: Color(0xFF5D4037),
+                                ),
+                                keyboardType: TextInputType.number,
+                                textInputAction: TextInputAction.done,
+                                onChanged: (_) => _updateCardio(),
+                              ),
+                            ),
+                          ],
+                        )
+                      : Text(
+                          '${widget.cardioExercise.distanceInKm} km / ${widget.cardioExercise.durationInMinutes} 分',
+                          style: const TextStyle(
+                            fontSize: 16,
+                            fontFamily: 'serif',
+                            color: Color(0xFF5D4037),
+                          ),
+                        ),
+                ),
+                const SizedBox(width: 8),
+                if (_isEditing) ...[
+                  IconButton(
+                    icon: const Icon(Icons.check, color: Colors.green),
+                    onPressed: () {
+                      _updateCardio();
+                      widget.onSave();
+                      setState(() => _isEditing = false);
+                    },
+                  ),
+                ] else ...[
+                  IconButton(
+                    icon: const Icon(Icons.edit, size: 18),
+                    color: const Color(0xFF8B4513),
+                    onPressed: () => setState(() => _isEditing = true),
+                  ),
+                ],
+              ],
+            ),
+          ],
+        ),
       ),
     );
   }
