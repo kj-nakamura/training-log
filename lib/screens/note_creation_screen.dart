@@ -613,6 +613,7 @@ class _NoteCreationScreenState extends State<NoteCreationScreen> with TickerProv
               ],
             ),
           ),
+                    _buildCardioSection(),
           const SizedBox(height: 16),
           // Exercise display
           const Text(
@@ -643,20 +644,20 @@ class _NoteCreationScreenState extends State<NoteCreationScreen> with TickerProv
             );
           }).toList(),
           // Show message when no exercises recorded
-          if (_exercises.where((exercise) => exercise.name.isNotEmpty).toList().isEmpty)
-            Container(
-              padding: const EdgeInsets.all(20),
-              child: const Text(
-                'トレーニング内容が記録されていません',
-                style: TextStyle(
-                  fontSize: 16,
-                  fontFamily: 'serif',
-                  color: Color(0xFF999999),
-                  fontStyle: FontStyle.italic,
-                ),
-                textAlign: TextAlign.center,
-              ),
-            ),
+          // if (_exercises.where((exercise) => exercise.name.isNotEmpty).toList().isEmpty)
+          //   Container(
+          //     padding: const EdgeInsets.all(20),
+          //     child: const Text(
+          //       'トレーニング内容が記録されていません',
+          //       style: TextStyle(
+          //         fontSize: 16,
+          //         fontFamily: 'serif',
+          //         color: Color(0xFF999999),
+          //         fontStyle: FontStyle.italic,
+          //       ),
+          //       textAlign: TextAlign.center,
+          //     ),
+          //   ),
           // Add exercise button (show when less than 5 exercises)
           if (_exercises.length < 5)
             Container(
@@ -686,7 +687,6 @@ class _NoteCreationScreenState extends State<NoteCreationScreen> with TickerProv
               ),
             ),
           const SizedBox(height: 16),
-          _buildCardioSection(),
         ],
       ),
     );
