@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart'; // 追加
 import 'package:intl/intl.dart';
 import '../models/exercise_report.dart';
 import '../models/max_exercise.dart';
@@ -464,14 +465,35 @@ class _ReportScreenState extends State<ReportScreen> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(
-                    report.exerciseName,
-                    style: const TextStyle(
-                      fontSize: 18,
-                      fontWeight: FontWeight.bold,
-                      fontFamily: 'serif',
-                      color: Color(0xFF5D4037),
-                    ),
+                  Row(
+                    children: [
+                      GestureDetector(
+                        onLongPress: () {
+                          Clipboard.setData(ClipboardData(text: report.exerciseName));
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(content: Text('${report.exerciseName} をクリップボードにコピーしました')),
+                          );
+                        },
+                        child: Text(
+                          report.exerciseName,
+                          style: const TextStyle(
+                            fontSize: 18,
+                            fontWeight: FontWeight.bold,
+                            fontFamily: 'serif',
+                            color: Color(0xFF5D4037),
+                          ),
+                        ),
+                      ),
+                      IconButton(
+                        icon: const Icon(Icons.copy, size: 18, color: Colors.grey),
+                        onPressed: () {
+                          Clipboard.setData(ClipboardData(text: report.exerciseName));
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(content: Text('${report.exerciseName} をクリップボードにコピーしました')),
+                          );
+                        },
+                      ),
+                    ],
                   ),
                   const SizedBox(height: 4),
                   Row(
