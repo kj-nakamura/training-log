@@ -821,7 +821,7 @@ class _EditModeExerciseCardState extends State<EditModeExerciseCard> {
                             controller: _nameController,
                             decoration: InputDecoration(
                               labelText: '種目名 *',
-                              hintText: '登録種目から検索または手動入力',
+                              // hintText: '登録種目から検索または手動入力',
                               labelStyle: const TextStyle(
                                 color: Color(0xFF8B4513),
                                 fontFamily: 'serif',
